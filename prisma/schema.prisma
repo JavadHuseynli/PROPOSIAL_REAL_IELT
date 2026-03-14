@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DEAN
+  TEACHER
+  STUDENT
+}
+
+enum TestType {
+  LISTENING
+  READING
+  WRITING
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE_NG
+  MATCHING
+  FILL_BLANK
+  YES_NO_NG
+  SENTENCE_COMPLETION
+  NOTE_COMPLETION
+}
+
+enum WritingTaskType {
+  TASK1
+  TASK2
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  GRADED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  fin       String?  @unique // FIN kod (tələbələr üçün)
+  role      Role     @default(STUDENT)
+  groupId   String?
+  createdAt DateTime @default(now())
+
+  group            Group?             @relation("GroupStudents", fields: [groupId], references: [id])
+  teacherOfGroups  Group[]            @relation("GroupTeacher")
+  createdTests     Test[]
+  testAttempts     TestAttempt[]
+  writingReviews   WritingReview[]
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  teacherId String?
+  createdAt DateTime @default(now())
+
+  teacher  User?  @relation("GroupTeacher", fields: [teacherId], references: [id])
+  students User[] @relation("GroupStudents")
+}
+
+model Test {
+  id          String   @id @default(cuid())
+  title       String
+  type        TestType
+  description String?
+  createdById String
+  isActive    Boolean  @default(true)
+  duration    Int?     // minutes
+  createdAt   DateTime @default(now())
+
+  createdBy    User          @relation(fields: [createdById], references: [id])
+  questions    Question[]
+  audioFiles   AudioFile[]
+  writingTasks WritingTask[]
+  attempts     TestAttempt[]
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  testId        String
+  questionText  String
+  questionType  QuestionType
+  options       Json?        // for multiple choice, matching etc
+  correctAnswer String
+  imageUrl      String?
+  order         Int          @default(0)
+  points        Int          @default(1)
+
+  test    Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  answers Answer[]
+}
+
+model AudioFile {
+  id       String @id @default(cuid())
+  testId   String
+  filePath String
+  duration Int?   // seconds
+  section  Int    @default(1) // 1-4
+  order    Int    @default(0)
+
+  test Test @relation(fields: [testId], references: [id], onDelete: Cascade)
+}
+
+model WritingTask {
+  id       String          @id @default(cuid())
+  testId   String
+  taskType WritingTaskType
+  prompt   String
+  imageUrl String?
+  minWords Int             @default(150)
+  maxWords Int             @default(300)
+
+  test        Test               @relation(fields: [testId], references: [id], onDelete: Cascade)
+  submissions WritingSubmission[]
+}
+
+model TestAttempt {
+  id              String        @id @default(cuid())
+  userId          String
+  testId          String
+  startedAt       DateTime      @default(now())
+  completedAt     DateTime?
+  score           Float?
+  status          AttemptStatus @default(IN_PROGRESS)
+  tabSwitchCount  Int           @default(0)
+
+  user               User               @relation(fields: [userId], references: [id])
+  test               Test               @relation(fields: [testId], references: [id])
+  answers            Answer[]
+  writingSubmissions WritingSubmission[]
+  violations         Violation[]
+}
+
+model Violation {
+  id         String   @id @default(cuid())
+  attemptId  String
+  type       String   // TAB_SWITCH, WINDOW_BLUR, COPY_PASTE, RIGHT_CLICK
+  detail     String?  // extra info
+  duration   Int?     // seconds away
+  screenshot String?  // base64 or path
+  createdAt  DateTime @default(now())
+
+  attempt TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+}
+
+model Answer {
+  id         String  @id @default(cuid())
+  attemptId  String
+  questionId String
+  userAnswer String
+  isCorrect  Boolean @default(false)
+  points     Int     @default(0)
+
+  attempt  TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id])
+}
+
+model WritingSubmission {
+  id            String   @id @default(cuid())
+  attemptId     String
+  writingTaskId String
+  content       String
+  wordCount     Int      @default(0)
+  submittedAt   DateTime @default(now())
+
+  attempt     TestAttempt    @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  writingTask WritingTask    @relation(fields: [writingTaskId], references: [id])
+  review      WritingReview?
+}
+
+model WritingReview {
+  id               String   @id @default(cuid())
+  submissionId     String   @unique
+  teacherId        String
+  taskAchievement  Float
+  coherenceCohesion Float
+  lexicalResource  Float
+  grammaticalRange Float
+  overallBand      Float
+  correctedContent String?
+  comments         String?
+  reviewedAt       DateTime @default(now())
+
+  submission     WritingSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  teacher        User              @relation(fields: [teacherId], references: [id])
+  inlineComments InlineComment[]
+}
+
+model InlineComment {
+  id            String  @id @default(cuid())
+  reviewId      String
+  startIndex    Int
+  endIndex      Int
+  originalText  String
+  suggestedText String?
+  comment       String
+
+  review WritingReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+}
