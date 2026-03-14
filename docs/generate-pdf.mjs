@@ -5,12 +5,10 @@ import path from "path";
 const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const DIR = "./docs/screenshots";
 
-// Convert images to base64 for embedding
-function imgBase64(name) {
+function img(name) {
   const p = path.join(DIR, name);
   if (!fs.existsSync(p)) return "";
-  const buf = fs.readFileSync(p);
-  return `data:image/png;base64,${buf.toString("base64")}`;
+  return `data:image/png;base64,${fs.readFileSync(p).toString("base64")}`;
 }
 
 const html = `<!DOCTYPE html>
@@ -28,17 +26,18 @@ const html = `<!DOCTYPE html>
   .cover p { font-size: 16px; color: #64748b; }
   .cover .ver { margin-top: 40px; font-size: 14px; color: #94a3b8; }
   .section { page-break-before: always; }
-  .screenshot { margin: 15px 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-  .screenshot img { width: 100%; display: block; }
-  .info-box { background: #eff6ff; border-left: 4px solid #1e40af; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; }
-  .warning-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; }
+  .ss { margin: 15px 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .ss img { width: 100%; display: block; }
+  .info { background: #eff6ff; border-left: 4px solid #1e40af; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; }
+  .warn { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; }
+  .danger { background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; }
   .step { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin: 10px 0; }
-  .step-num { display: inline-block; background: #1e40af; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: bold; margin-right: 8px; }
-  .role-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
-  .role-admin { background: #fee2e2; color: #991b1b; }
-  .role-teacher { background: #dbeafe; color: #1e40af; }
-  .role-student { background: #dcfce7; color: #166534; }
-  .role-dean { background: #fef3c7; color: #92400e; }
+  .sn { display: inline-block; background: #1e40af; color: white; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: bold; margin-right: 8px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .b-admin { background: #fee2e2; color: #991b1b; }
+  .b-teacher { background: #dbeafe; color: #1e40af; }
+  .b-student { background: #dcfce7; color: #166534; }
+  .b-dean { background: #fef3c7; color: #92400e; }
   table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
   th { background: #f1f5f9; padding: 8px 12px; text-align: left; border: 1px solid #e2e8f0; }
   td { padding: 8px 12px; border: 1px solid #e2e8f0; }
@@ -48,366 +47,264 @@ const html = `<!DOCTYPE html>
 </head>
 <body>
 
-<!-- COVER PAGE -->
+<!-- COVER -->
 <div class="cover">
-  <h1>IELTS Hazırlıq Sistemi</h1>
-  <p>Universitet üçün IELTS imtahan hazırlıq platforması</p>
-  <p>İstifadəçi Təlimatı</p>
+  <h1>IELTS Hazirliq Sistemi</h1>
+  <p>Universitet ucun IELTS imtahan hazirliq platformasi</p>
+  <p>Istifadeci Telimat</p>
   <div class="ver">Versiya 1.0 | Mart 2026</div>
 </div>
 
-<!-- TABLE OF CONTENTS -->
+<!-- MUNDERICAT -->
 <div class="section">
-<h1>Mündəricat</h1>
+<h1>Mundericat</h1>
 <ol style="font-size: 15px; line-height: 2.2;">
-  <li><b>Sistem Haqqında</b> - Bu sistem nədir, nə işə yarayır</li>
-  <li><b>Giriş Səhifəsi</b> - Sistemə necə daxil olmaq</li>
-  <li><b>Admin Paneli</b> - İstifadəçi, qrup, test idarəetmə</li>
-  <li><b>Müəllim Paneli</b> - Sual yaratma, writing yoxlama</li>
-  <li><b>Tələbə Paneli</b> - Test həll etmə (Listening, Reading, Writing)</li>
-  <li><b>Dekan Paneli</b> - Statistika və nəticələr</li>
+  <li><b>Sistem Haqqinda</b> - Bu sistem nedir, ne ise yarayir</li>
+  <li><b>Giris Sehifesi</b> - Sisteme nece daxil olmaq</li>
+  <li><b>Admin Paneli</b> - Istifadeci, test idareetme</li>
+  <li><b>Muellim Paneli</b> - Qrup, sual yaratma, writing yoxlama</li>
+  <li><b>Telebe Paneli</b> - Test hell etme (Listening, Reading, Writing)</li>
+  <li><b>Dekan Paneli</b> - Statistika ve neticeler</li>
+  <li><b>Nezaret Sistemi</b> - Telebe ekranina canli nezaret</li>
 </ol>
 </div>
 
-<!-- 1. ABOUT -->
+<!-- 1. HAQQINDA -->
 <div class="section">
-<h1>1. Sistem Haqqında</h1>
+<h1>1. Sistem Haqqinda</h1>
 
-<h3>Bu sistem nədir?</h3>
-<p>Bu, universitetdə tələbələrin IELTS imtahanına hazırlaşması üçün onlayn platformadır. Sistem internetdə işləyir, yəni tələbə kompüter və ya telefondan brauzerlə daxil olub test həll edə bilər.</p>
+<h3>Bu sistem nedir?</h3>
+<p>Bu, universitetde telebelerin IELTS imtahanina hazirlashmasi ucun onlayn platformadir. Telebe komputer ve ya telefondan brauzerle daxil olub test hell ede biler.</p>
 
-<h3>Sistemdə kimlər var?</h3>
+<h3>Sistemde kimler var?</h3>
 <table>
-  <tr>
-    <th>Rol</th>
-    <th>Kim?</th>
-    <th>Nə edə bilər?</th>
-  </tr>
-  <tr>
-    <td><span class="role-badge role-admin">Admin</span></td>
-    <td>Sistem administratoru</td>
-    <td>Bütün sistemi idarə edir: istifadəçilər, qruplar, testlər yaradır</td>
-  </tr>
-  <tr>
-    <td><span class="role-badge role-teacher">Müəllim</span></td>
-    <td>IELTS müəllimi</td>
-    <td>Suallar əlavə edir, tələbələrin writing cavablarını yoxlayır, qiymət verir</td>
-  </tr>
-  <tr>
-    <td><span class="role-badge role-student">Tələbə</span></td>
-    <td>Tələbə</td>
-    <td>Listening, Reading, Writing testləri həll edir</td>
-  </tr>
-  <tr>
-    <td><span class="role-badge role-dean">Dekan</span></td>
-    <td>Fakültə dekanı</td>
-    <td>Bütün nəticələrə, statistikaya baxır</td>
-  </tr>
+  <tr><th>Rol</th><th>Kim?</th><th>Ne ede biler?</th></tr>
+  <tr><td><span class="badge b-admin">Admin</span></td><td>Sistem administratoru</td><td>Istifadeciler, testler yaradir</td></tr>
+  <tr><td><span class="badge b-teacher">Muellim</span></td><td>IELTS muellimi</td><td>Qrup yaradir, telebe elave edir, sual elave edir, writing yoxlayir</td></tr>
+  <tr><td><span class="badge b-student">Telebe</span></td><td>Telebe</td><td>Listening, Reading, Writing testleri hell edir</td></tr>
+  <tr><td><span class="badge b-dean">Dekan</span></td><td>Fakulte dekani</td><td>Butun neticelere, statistikaya, nezarete baxir</td></tr>
 </table>
 
-<h3>IELTS test növləri</h3>
+<h3>Giris qaydasi</h3>
+<table>
+  <tr><th>Rol</th><th>Giris usulu</th></tr>
+  <tr><td>Telebe</td><td>FIN kodu ile (hem login, hem parol FIN koddur)</td></tr>
+  <tr><td>Muellim</td><td>FIN kodu ve ya email ile</td></tr>
+  <tr><td>Admin / Dekan</td><td>Email + parol ile</td></tr>
+</table>
+
+<h3>IELTS test novleri</h3>
 <ul>
-  <li><b>Listening</b> - Audio dinləyib suallara cavab verilir</li>
-  <li><b>Reading</b> - Mətn oxuyub suallara cavab verilir</li>
-  <li><b>Writing</b> - Verilən tapşırığa esse/mətn yazılır, müəllim yoxlayır</li>
+  <li><b>Listening</b> - Audio dinleyib suallara cavab verilir</li>
+  <li><b>Reading</b> - Metn oxuyub suallara cavab verilir</li>
+  <li><b>Writing</b> - Verilmish tapshiriga esse/metn yazilir, muellim yoxlayir</li>
 </ul>
 
-<div class="info-box">
-  <b>Qiymətləndirmə:</b> Listening və Reading testləri avtomatik yoxlanılır. Writing testlərini müəllim əl ilə yoxlayır və IELTS band balı (0-9) verir.
+<div class="info">
+  <b>Qiymetlendirme:</b> Listening ve Reading testleri avtomatik yoxlanilir. Writing testlerini muellim el ile yoxlayir ve IELTS band bali (0-9) verir.
 </div>
 </div>
 
-<!-- 2. LOGIN -->
+<!-- 2. GIRIS -->
 <div class="section">
-<h1>2. Giriş Səhifəsi</h1>
+<h1>2. Giris Sehifesi</h1>
+<div class="ss"><img src="${img("01-login.png")}"></div>
 
-<div class="screenshot">
-  <img src="${imgBase64("01-login.png")}" alt="Login">
-</div>
+<div class="step"><span class="sn">1</span> <b>"FIN kod / Email"</b> xanasina FIN kodunuzu ve ya emailinizi yazin</div>
+<div class="step"><span class="sn">2</span> <b>"Parol"</b> xanasina parolunuzu yazin (telebeler ucun parol FIN koddur)</div>
+<div class="step"><span class="sn">3</span> <b>"Daxil ol"</b> duymesin basin</div>
 
-<h3>Sistemə necə daxil olmaq?</h3>
-<p>Brauzerdə sistemin ünvanını yazırsınız və giriş səhifəsi açılır.</p>
-
-<div class="step">
-  <span class="step-num">1</span> <b>"FIN kod / Email"</b> xanasına öz FIN kodunuzu və ya email ünvanınızı yazın
-</div>
-<div class="step">
-  <span class="step-num">2</span> <b>"Parol"</b> xanasına parolunuzu yazın (tələbələr üçün parol FIN kodudur)
-</div>
-<div class="step">
-  <span class="step-num">3</span> <b>"Daxil ol"</b> düyməsinə basın
+<div class="warn"><b>Diqqet:</b> Sisteme yalniz admin terefinden yaradilmish istifadeciler daxil ola biler. Kenardan qeydiyyat mumkun deyil.</div>
 </div>
 
-<div class="info-box">
-  <b>Tələbələr üçün:</b> Həm istifadəçi adı, həm də parol FIN kodunuzdur. Məsələn, FIN: <code>5AE1234</code> → login: <code>5AE1234</code>, parol: <code>5AE1234</code>
-</div>
-
-<div class="warning-box">
-  <b>Diqqət:</b> Sistemə yalnız admin tərəfindən yaradılmış istifadəçilər daxil ola bilər. Kənardan qeydiyyat mümkün deyil.
-</div>
-</div>
-
-<!-- 3. ADMIN PANEL -->
+<!-- 3. ADMIN -->
 <div class="section">
 <h1>3. Admin Paneli</h1>
-<p>Admin - sistemin "sahibi"dir. O, bütün istifadəçiləri yaradır, qrupları düzəldir, testləri əlavə edir. Admin girişi email+parol ilə olur.</p>
+<p>Admin sistemin sahibidir. Istifadeciler yaradir, testler elave edir, nezaret edir.</p>
 
-<h2>3.1 Dashboard (Ana Səhifə)</h2>
-<div class="screenshot">
-  <img src="${imgBase64("02-admin-dashboard.png")}" alt="Admin Dashboard">
-</div>
-<p>Dashboardda adminin gördüyü ümumi rəqəmlər var: neçə istifadəçi var, neçə qrup var, neçə test var. Bir baxışda sistemin vəziyyətini görürsünüz.</p>
+<h2>3.1 Dashboard</h2>
+<div class="ss"><img src="${img("02-admin-dashboard.png")}"></div>
+<p>Umumi reqemler: nece istifadeci, nece test, nece qrup var.</p>
 
-<h2>3.2 İstifadəçi İdarəetmə</h2>
-<div class="screenshot">
-  <img src="${imgBase64("03-admin-users.png")}" alt="Admin Users">
-</div>
-<p>Bu səhifədə admin yeni tələbə, müəllim, dekan yaradır. Hər istifadəçinin adı, FIN kodu, emaili, rolu və qrupu göstərilir.</p>
+<h2>3.2 Istifadeci Idareetme</h2>
+<div class="ss"><img src="${img("03-admin-users.png")}"></div>
+<p>Burada admin yeni telebe, muellim, dekan yaradir.</p>
 
-<h3>Yeni tələbə necə yaradılır?</h3>
-<div class="step">
-  <span class="step-num">1</span> <b>"Yeni İstifadəçi"</b> düyməsinə basın
-</div>
-<div class="step">
-  <span class="step-num">2</span> Tələbənin <b>Adını</b> yazın (tam ad-soyad)
-</div>
-<div class="step">
-  <span class="step-num">3</span> <b>FIN kodunu</b> yazın - bu həm giriş adı, həm parol olacaq
-</div>
-<div class="step">
-  <span class="step-num">4</span> <b>Rolu</b> "Tələbə" seçin
-</div>
-<div class="step">
-  <span class="step-num">5</span> <b>Qrupu</b> seçin (əgər qrup yaradılıbsa)
-</div>
-<div class="step">
-  <span class="step-num">6</span> <b>"Yarat"</b> basın - hazırdır!
-</div>
+<h3>Yeni telebe yaratmaq:</h3>
+<div class="step"><span class="sn">1</span> <b>"Yeni Istifadeci"</b> basin</div>
+<div class="step"><span class="sn">2</span> <b>Ad</b> yazin, <b>FIN kod</b> yazin</div>
+<div class="step"><span class="sn">3</span> <b>Rol</b> = "Telebe" secin, <b>Qrup</b> secin</div>
+<div class="step"><span class="sn">4</span> Shifre bosh qalsa FIN kod shifre olur. <b>"Yarat"</b> basin</div>
 
-<div class="info-box">
-  Email xanası boş qala bilər - tələbələr üçün məcburi deyil. Şifrə xanası boş qalsa, FIN kodu şifrə olur.
-</div>
+<div class="info">Telebe secilende: Ad + FIN + Qrup gorsenid. Muellim secilende: Ad + FIN + Email + Qrup. Admin/Dekan secilende: Ad + Email + Shifre.</div>
 
-<h2>3.3 Qrup İdarəetmə</h2>
-<div class="screenshot">
-  <img src="${imgBase64("04-admin-groups.png")}" alt="Admin Groups">
-</div>
-<p>Burada admin qrupları yaradır (məsələn "Qrup A", "101-ci qrup" və s.). Hər qrupa bir müəllim təyin edilir və tələbələr əlavə olunur. Müəllim yalnız öz qrupunun tələbələrinin writing-lərini yoxlaya bilir.</p>
+<h2>3.3 Test Idareetme</h2>
+<div class="ss"><img src="${img("05-admin-tests.png")}"></div>
+<p>Burada admin yeni testler yaradir: Listening, Reading, Writing. Her test ucun suallar, audio fayllar, writing tapshiriqlari elave olunur.</p>
 
-<h3>Qrup yaratmaq:</h3>
-<div class="step">
-  <span class="step-num">1</span> <b>"Yeni Qrup"</b> düyməsinə basın
-</div>
-<div class="step">
-  <span class="step-num">2</span> Qrupun <b>adını</b> yazın
-</div>
-<div class="step">
-  <span class="step-num">3</span> <b>Müəllimi</b> seçin (siyahıdan)
-</div>
-<div class="step">
-  <span class="step-num">4</span> <b>"Yarat"</b> basın, sonra qrupun içinə girib tələbələri əlavə edin
-</div>
-
-<h2>3.4 Test İdarəetmə</h2>
-<div class="screenshot">
-  <img src="${imgBase64("05-admin-tests.png")}" alt="Admin Tests">
-</div>
-<p>Bu, ən vacib hissədir. Burada admin yeni testlər yaradır - Listening, Reading və ya Writing. Hər test üçün suallar, audio fayllar və ya writing tapşırıqları əlavə olunur.</p>
-
-<h3>Yeni test necə yaradılır?</h3>
-<div class="step">
-  <span class="step-num">1</span> <b>"Yeni Test"</b> basın
-</div>
-<div class="step">
-  <span class="step-num">2</span> Testin <b>adını</b> yazın (məs: "Reading Test 1")
-</div>
-<div class="step">
-  <span class="step-num">3</span> <b>Tipi</b> seçin: Listening, Reading və ya Writing
-</div>
-<div class="step">
-  <span class="step-num">4</span> <b>Müddəti</b> yazın (dəqiqə ilə, məs: 60)
-</div>
-<div class="step">
-  <span class="step-num">5</span> <b>"Yarat"</b> basın
-</div>
-<div class="step">
-  <span class="step-num">6</span> Sonra testin üstünə basıb <b>sualları əlavə edin</b>
-</div>
-
-<h3>Sual tipləri:</h3>
+<h3>Sual tipleri:</h3>
 <table>
-  <tr><th>Tip</th><th>İzah</th></tr>
-  <tr><td>Multiple Choice</td><td>Bir neçə variantdan birini seçmə</td></tr>
-  <tr><td>True/False/Not Given</td><td>Doğru/Yanlış/Verilməyib</td></tr>
-  <tr><td>Yes/No/Not Given</td><td>Bəli/Xeyr/Verilməyib</td></tr>
-  <tr><td>Fill in the Blank</td><td>Boşluğu doldurma (bir söz)</td></tr>
-  <tr><td>Sentence Completion</td><td>Cümləni tamamlama</td></tr>
-  <tr><td>Note Completion</td><td>Qeydlərdə boşluqları doldurma (şəkildəki kimi)</td></tr>
-  <tr><td>Matching</td><td>Uyğunlaşdırma</td></tr>
+  <tr><th>Tip</th><th>Izah</th></tr>
+  <tr><td>Multiple Choice</td><td>Bir nece variantdan birini secme</td></tr>
+  <tr><td>True/False/Not Given</td><td>Dogru/Yanlish/Verilmeyib</td></tr>
+  <tr><td>Fill in the Blank</td><td>Boshluqu doldurma</td></tr>
+  <tr><td>Note Completion</td><td>Qeydlerde boshluqlari doldurma</td></tr>
+  <tr><td>Matching</td><td>Uygunlashdirma</td></tr>
 </table>
 
-<div class="info-box">
-  <b>Sualara şəkil əlavə etmək:</b> Hər sualın altında "Şəkil" sahəsi var. Oradan diagram, qrafik, cədvəl şəkli yükləyə bilərsiniz. Writing tapşırıqlarına da şəkil əlavə olunur.
-</div>
+<div class="info"><b>Shekil elave etmek:</b> Her sualin ve writing tapshiriginin altinda "Shekil" sahesi var. Oradan diagram, qrafik yukleye bilersimiz.</div>
+
+<h2>3.4 Nezaret Paneli</h2>
+<div class="ss"><img src="${img("06-admin-monitoring.png")}"></div>
+<p>Telebelerin test zamani fealiyyetine canli nezaret. Her 10 saniyede yenilenir. Iki rejim var:</p>
+<ul>
+  <li><b>Canli Ekranlar</b> - telebelerin ekranlarini real-time gorursunuz</li>
+  <li><b>Pozuntular</b> - kim, ne vaxt, ne edib (tab deyishme, copy/paste ve s.)</li>
+</ul>
+<p>Shubheli fealiyyet cedvelindeki her setrin ustune basanda o telebenin butun ekran goruntuleri ve pozuntulari acilir.</p>
 
 <h2>3.5 Hesabatlar</h2>
-<div class="screenshot">
-  <img src="${imgBase64("06-admin-reports.png")}" alt="Admin Reports">
-</div>
-<p>Hesabatlar səhifəsində bütün testlərin ümumi nəticələri göstərilir: orta ballar, qrupların müqayisəsi, neçə test tamamlanıb və s.</p>
+<div class="ss"><img src="${img("07-admin-reports.png")}"></div>
+<p>Butun testlerin umumi neticeleri: orta ballar, qruplarin muqayisesi.</p>
 </div>
 
-<!-- 4. TEACHER PANEL -->
+<!-- 4. MUELLIM -->
 <div class="section">
-<h1>4. Müəllim Paneli</h1>
-<p>Müəllimin iki əsas işi var: <b>sual əlavə etmək</b> və <b>tələbələrin writing cavablarını yoxlamaq</b>. Müəllim yalnız öz qrupunun tələbələrini görür.</p>
+<h1>4. Muellim Paneli</h1>
+<p>Muellimin esas ishleri: qrup yaratmaq, telebe elave etmek, sual elave etmek, writing yoxlamaq.</p>
 
 <h2>4.1 Dashboard</h2>
-<div class="screenshot">
-  <img src="${imgBase64("07-teacher-dashboard.png")}" alt="Teacher Dashboard">
-</div>
-<p>Müəllimin ana səhifəsində yoxlanılmamış writing-lərin sayı, qrupdakı tələbə sayı və son göndərilən cavablar göstərilir.</p>
+<div class="ss"><img src="${img("08-teacher-dashboard.png")}"></div>
+<p>Yoxlanilmamish writing sayisi, telebelerin sayi, son gonderilmish cavablar.</p>
 
-<h2>4.2 Sual İdarəetmə</h2>
-<div class="screenshot">
-  <img src="${imgBase64("08-teacher-questions.png")}" alt="Teacher Questions">
-</div>
-<p>Burada müəllim mövcud testlərə yeni suallar əlavə edə bilər. Hər test üçün hansı suallar var, göstərilir.</p>
+<h2>4.2 Qruplar</h2>
+<div class="ss"><img src="${img("09-teacher-groups.png")}"></div>
+<p>Muellim oz qruplarini yaradir ve idaree edir. Her qrupa telebeler elave ede biler.</p>
 
-<h2>4.3 Yeni Sual Yaratma</h2>
-<div class="screenshot">
-  <img src="${imgBase64("09-teacher-question-create.png")}" alt="Teacher Question Create">
-</div>
-<p>Bu formda müəllim yeni sual yaradır:</p>
-<ul>
-  <li>Əvvəl <b>testi seçir</b> (hansı testə sual əlavə olunacaq)</li>
-  <li>Sonra <b>sual tipini</b> seçir (Multiple Choice, True/False və s.)</li>
-  <li><b>Sual mətnini</b> yazır</li>
-  <li><b>Doğru cavabı</b> qeyd edir</li>
-  <li>Lazım gələrsə <b>şəkil</b> yükləyir</li>
-</ul>
+<h3>Telebe elave etmek:</h3>
+<div class="step"><span class="sn">1</span> Qrupun ustune basin, <b>"Telebe Elave Et"</b> basin</div>
+<div class="step"><span class="sn">2</span> Telebenin <b>Ad Soyad</b> ve <b>FIN Kod</b> yazin</div>
+<div class="step"><span class="sn">3</span> Parol avtomatik FIN kod olacaq. <b>"Elave Et"</b> basin</div>
+
+<h2>4.3 Sual Yaratma</h2>
+<div class="ss"><img src="${img("10-teacher-questions.png")}"></div>
+<div class="ss"><img src="${img("11-teacher-question-create.png")}"></div>
+<p>Muellim movcud testlere yeni suallar elave ede biler. Test secir, sual tipini secir, metni yazir, dogru cavabi qeyd edir.</p>
 
 <h2>4.4 Writing Yoxlama</h2>
-<div class="screenshot">
-  <img src="${imgBase64("10-teacher-writing-review.png")}" alt="Teacher Writing Review">
-</div>
-<p>Bu, müəllimin ən çox vaxt keçirdiyi hissədir. Tələbə writing testini bitirdikdən sonra, cavabı burada görünür. Müəllim:</p>
-
-<div class="step">
-  <span class="step-num">1</span> Tələbənin yazdığı mətni oxuyur (sol tərəfdə)
-</div>
-<div class="step">
-  <span class="step-num">2</span> <b>Band bal</b> verir (0-9 arası, 4 kateqoriyada):
-  <ul>
-    <li>Task Achievement - Tapşırığı nə dərəcədə yerinə yetirib</li>
-    <li>Coherence & Cohesion - Mətnin ardıcıllığı</li>
-    <li>Lexical Resource - Söz ehtiyatı</li>
-    <li>Grammatical Range - Qrammatika</li>
-  </ul>
-</div>
-<div class="step">
-  <span class="step-num">3</span> Mətndə səhvləri seçib <b>düzəliş</b> yaza bilər
-</div>
-<div class="step">
-  <span class="step-num">4</span> <b>Ümumi şərh</b> yazır
-</div>
-<div class="step">
-  <span class="step-num">5</span> <b>"Göndər"</b> basır - tələbə nəticəni görə bilir
-</div>
+<div class="ss"><img src="${img("12-teacher-writing-review.png")}"></div>
+<p>Telebeler writing testini bitirdikden sonra cavab burada gorunur. Muellim:</p>
+<ul>
+  <li>Telebenin yazdigi metni oxuyur</li>
+  <li>Band bal verir (0-9, 4 kateqoriyada): Task Achievement, Coherence, Lexical Resource, Grammar</li>
+  <li>Metn uzerinde sehvleri secib duzelis yazar</li>
+  <li>Umumi sherh yazir ve gonderir</li>
+</ul>
 </div>
 
-<!-- 5. STUDENT PANEL -->
+<!-- 5. TELEBE -->
 <div class="section">
-<h1>5. Tələbə Paneli</h1>
-<p>Tələbə sistemə FIN kodu ilə daxil olur. Qarşısında 3 bölmə görünür: <b>Listening</b>, <b>Reading</b>, <b>Writing</b>. Hər bölmədə tələbəyə təsadüfi bir test təyin olunur.</p>
+<h1>5. Telebe Paneli</h1>
+<p>Telebe FIN kodu ile daxil olur. 3 bolme gorunur: Listening, Reading, Writing. Her bolmede random bir test teyin olunur.</p>
 
-<div class="warning-box">
-  <b>Vacib:</b> Hər test yalnız bir dəfə həll edilə bilər. Testi bitirdikdən sonra yenidən başlamaq mümkün deyil.
-</div>
-
-<h2>5.1 Listening Bölməsi</h2>
-<div class="screenshot">
-  <img src="${imgBase64("11-student-listening.png")}" alt="Student Listening">
-</div>
-<p>Tələbə Listening bölməsinə daxil olanda ona random bir listening testi təyin olunur. "Testə Başla" düyməsinə basdıqda:</p>
+<div class="danger"><b>Vacib qaydalar:</b>
 <ul>
-  <li>Audio player açılır - dinləyir</li>
-  <li>Suallar göstərilir - cavab verir</li>
-  <li>Yuxarıda <b>taymer</b> gedir (vaxt bitəndə avtomatik göndərilir)</li>
-  <li>Cavablar <b>avtomatik yadda saxlanılır</b> - internet kəsilsə belə, geri qayıdanda cavablar yerindədir</li>
-</ul>
+  <li>Her test yalniz <b>bir defe</b> hell edile biler</li>
+  <li>Butun tapshriqlar (L+R+W) tamamlanmadan <b>cixish mumkun deyil</b></li>
+  <li>Test zamani ekran <b>nezaret olunur</b></li>
+  <li>Tab deyishme, copy/paste, sag klik <b>qeyde alinir</b></li>
+  <li>Cavablar avtomatik <b>yadda saxlanilir</b> (internet kecilse bele)</li>
+</ul></div>
 
-<h2>5.2 Reading Bölməsi</h2>
-<div class="screenshot">
-  <img src="${imgBase64("12-student-reading.png")}" alt="Student Reading">
-</div>
-<p>Reading testində sol tərəfdə <b>mətn</b>, sağ tərəfdə <b>suallar</b> göstərilir. Tələbə mətni oxuyub suallara cavab verir. Sual tipləri fərqli ola bilər: boşluq doldurma, True/False, Multiple Choice və s.</p>
+<h2>5.1 Listening</h2>
+<div class="ss"><img src="${img("13-student-listening.png")}"></div>
+<p>Random bir listening testi teyin olunur. "Teste Bashla" basanda audio player acilir, suallar gorunur, taymer gedir.</p>
 
-<div class="info-box">
-  <b>Avtomatik qiymətləndirmə:</b> Listening və Reading testləri bitdikdən sonra nəticə <b>dərhal</b> göstərilir. Sistem cavabları yoxlayır və IELTS band balını hesablayır.
-</div>
+<h2>5.2 Reading</h2>
+<div class="ss"><img src="${img("14-student-reading.png")}"></div>
+<p>Sol terefde metn, sag terefde suallar. Telebe metni oxuyub suallara cavab verir. Neticeler dehal gorunur.</p>
 
-<h2>5.3 Writing Bölməsi</h2>
-<div class="screenshot">
-  <img src="${imgBase64("13-student-writing.png")}" alt="Student Writing">
-</div>
-<p>Writing testində tələbəyə tapşırıq verilir (bəzən şəkil - diagram, qrafik və s. ilə birlikdə). Tələbə:</p>
-<ul>
-  <li>Tapşırığı oxuyur</li>
-  <li>Aşağıdakı sahəyə essesini/mətnini yazır</li>
-  <li>Söz sayı avtomatik göstərilir</li>
-  <li>"Testi Bitir" basır</li>
-  <li>Sonra müəllim yoxlayıb qiymət verəcək</li>
-</ul>
+<h2>5.3 Writing</h2>
+<div class="ss"><img src="${img("15-student-writing.png")}"></div>
+<p>Tapshiriq verilir (bezen shekil ile). Telebe essesini yazir, soz sayi avtomatik gorunur. Sonra muellim yoxlayir.</p>
 
-<div class="info-box">
-  <b>Cavablar itirilmir:</b> Yazdığınız mətn hər dəqiqə avtomatik yadda saxlanılır. Əgər internet kəsilsə və ya brauzer bağlansa, geri qayıdanda yazdıqlarınız yerindədir.
-</div>
+<div class="info"><b>Avtomatik saxlama:</b> Yazdiginiz metn her deyishiklikde brauzerin yaddashinda saxlanilir. Internet kecilse ve ya brauzer baghlansa, geri qayidanda yazdiqlariniz yerindedir.</div>
 </div>
 
-<!-- 6. DEAN PANEL -->
+<!-- 6. DEKAN -->
 <div class="section">
 <h1>6. Dekan Paneli</h1>
-<p>Dekan heç nəyi dəyişə bilmir, sadəcə <b>baxır</b>. Bütün qrupların, tələbələrin nəticələrini görür, müqayisə edir.</p>
+<p>Dekan hech neyi deyishe bilmir, sadece baxir. Butun qruplarin, telebelerin neticelerini gorur, muqayise edir.</p>
 
 <h2>6.1 Dashboard</h2>
-<div class="screenshot">
-  <img src="${imgBase64("14-dean-dashboard.png")}" alt="Dean Dashboard">
-</div>
-<p>Ana səhifədə ümumi rəqəmlər var: neçə tələbə, neçə qrup, orta ballar, son fəaliyyətlər.</p>
+<div class="ss"><img src="${img("16-dean-dashboard.png")}"></div>
+<p>Umumi reqemler: nece telebe, nece qrup, orta ballar, son fealiyyetler.</p>
 
-<h2>6.2 Qrup Nəticələri</h2>
-<div class="screenshot">
-  <img src="${imgBase64("15-dean-groups.png")}" alt="Dean Groups">
-</div>
-<p>Burada hər qrupun nəticələri göstərilir. Dekan qrupları müqayisə edə bilir: hansı qrupun Listening-i daha yaxşıdır, hansının Writing-i zəifdir və s. Hər tələbənin fərdi nəticələrinə də baxa bilir.</p>
+<h2>6.2 Qrup Neticeleri</h2>
+<div class="ss"><img src="${img("17-dean-groups.png")}"></div>
+<p>Her qrupun neticeleri. Dekan qruplari muqayise ede bilir.</p>
+
+<h2>6.3 Nezaret</h2>
+<div class="ss"><img src="${img("18-dean-monitoring.png")}"></div>
+<p>Dekan da admin kimi telebelerin ekranini canli gore biler, pozuntulara baxa biler.</p>
 </div>
 
+<!-- 7. NEZARET -->
+<div class="section">
+<h1>7. Nezaret (Proctoring) Sistemi</h1>
+<p>Bu sistem telebelerin test zamani firildaqchi olub-olmadigini yoxlayir.</p>
 
-</body>
-</html>`;
+<h3>Nece ishleyir?</h3>
+<div class="step"><span class="sn">1</span> Telebe teste bashlayanda ekranini paylashmagi teleb olunur</div>
+<div class="step"><span class="sn">2</span> Her 15 saniyede ekran goruntusu serveree gonderilir</div>
+<div class="step"><span class="sn">3</span> Telebe bashqa tab-a kecende (meselen ChatGPT) dehal screenshot cekilir</div>
+<div class="step"><span class="sn">4</span> Admin/Dekan canli ekranlari gorur, shubheli fealiyyete basib screenshotlari acar</div>
+
+<h3>Ashkarlanan pozuntular:</h3>
+<table>
+  <tr><th>Pozuntu</th><th>Izah</th></tr>
+  <tr><td>Tab deyishme</td><td>Telebe bashqa tab-a kecib (ChatGPT, Google ve s.)</td></tr>
+  <tr><td>Pencere deyishme</td><td>Alt+Tab ile bashqa proqrama kecib</td></tr>
+  <tr><td>Kopyala/Yapishdir</td><td>Ctrl+C, Ctrl+V cehdleri</td></tr>
+  <tr><td>Sag klik</td><td>Kontekst menyu cehdi</td></tr>
+  <tr><td>Ekran paylashma dayandirma</td><td>Telebe screenshare-i baghlayib</td></tr>
+</table>
+
+<div class="danger"><b>Telebe bilmir:</b> Screenshot cekilmesi gizli basd verir. Telebe ekraninda hech bir xeberdarliq gorunmur. Yalniz kicik "aktiv" yazisi var.</div>
+
+<h3>Admin nece istifade edir?</h3>
+<ul>
+  <li><b>Canli Ekranlar</b> - grid sheklin  her telebenin ekrani gorunur</li>
+  <li>Ekranin ustune basanda - <b>boyudulur</b> (tam en), yeniden basanda <b>kicilir</b></li>
+  <li><b>Pozuntular</b> tabinda shubheli telebelerin siyahisi var</li>
+  <li>Setrin ustune basanda <b>butun screenshotlar</b> ve pozuntu detalari acilir</li>
+  <li>Screenshotun ustune basanda <b>tam ekranda</b> boyuk shekil gorunur</li>
+</ul>
+
+<h3>Telebe nece meshgul olur?</h3>
+<ul>
+  <li>Butun tapshriqlar (Listening + Reading + Writing) tamamlanmadan <b>cixish bloklahir</b></li>
+  <li>Yalniz qeydiyyatdan kecmish telebeler daxil ola biler</li>
+  <li>Her test <b>bir defe</b> hell olunur, tekrar mumkun deyil</li>
+</ul>
+</div>
+
+</body></html>`;
 
 async function main() {
   fs.writeFileSync("./docs/system-guide.html", html);
-
   const browser = await puppeteer.launch({
-    executablePath: CHROME_PATH,
-    headless: true,
-    args: ["--no-sandbox"],
+    executablePath: CHROME_PATH, headless: true, args: ["--no-sandbox"],
   });
-
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: "networkidle0" });
-
   await page.pdf({
     path: "./docs/IELTS-Sistem-Telimatı.pdf",
     format: "A4",
     printBackground: true,
     margin: { top: "40px", bottom: "40px", left: "50px", right: "50px" },
   });
-
-  console.log("PDF created: docs/IELTS-Sistem-Telimatı.pdf");
+  console.log("PDF created!");
   await browser.close();
 }
-
 main().catch(console.error);
