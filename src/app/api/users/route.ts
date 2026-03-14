@@ -50,9 +50,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Müəllimlər yalnız tələbə yarada bilər" }, { status: 403 });
   }
 
-  if (!name || !password) {
+  if (!name) {
     return NextResponse.json(
-      { error: "Ad və parol tələb olunur" },
+      { error: "Ad tələb olunur" },
       { status: 400 }
     );
   }

@@ -46,6 +46,16 @@ export default function AdminUsersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // Excel import
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importGroupId, setImportGroupId] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    total: number; success: number; failed: number;
+    results: { name: string; fin: string; status: string }[];
+  } | null>(null);
+
   const fetchUsers = async () => {
     try {
       const res = await fetch("/api/users");
@@ -148,6 +158,26 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleImport = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", importFile);
+      if (importGroupId) fd.append("groupId", importGroupId);
+      const res = await fetch("/api/users/import", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import uqursuz oldu");
+      setImportResult(data);
+      await fetchUsers();
+    } catch (err: any) {
+      setImportResult({ total: 0, success: 0, failed: 0, results: [{ name: "", fin: "", status: err.message }] });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleDelete = async (userId: string) => {
     if (!confirm("Bu istifadəçini silmək istədiyinizdən əminsiniz?")) return;
     try {
@@ -182,12 +212,20 @@ export default function AdminUsersPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">İstifadəçilər</h1>
-        <button
-          onClick={openCreateModal}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          Yeni İstifadəçi
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setShowImportModal(true); setImportResult(null); setImportFile(null); }}
+            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            Excel Import
+          </button>
+          <button
+            onClick={openCreateModal}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Yeni İstifadəçi
+          </button>
+        </div>
       </div>
 
       {/* Role filter tabs */}
@@ -380,6 +418,128 @@ export default function AdminUsersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-lg rounded-lg border border-border bg-card p-6 shadow-lg">
+            <h2 className="mb-4 text-lg font-semibold text-foreground">
+              Excel-den Import
+            </h2>
+
+            {!importResult ? (
+              <div className="space-y-4">
+                <div className="rounded-md border border-dashed border-border bg-muted/30 p-6 text-center">
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    Excel faylinda 2 sutun olmalidir: <b>Ad Soyad</b> ve <b>FIN</b>
+                  </p>
+                  <a
+                    href="/api/users/template"
+                    className="inline-block rounded-md border border-primary bg-primary/5 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10"
+                  >
+                    Shablon Yukle (.xlsx)
+                  </a>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-foreground">Excel Fayl</label>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-sm file:text-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-foreground">Qrup</label>
+                  <select
+                    value={importGroupId}
+                    onChange={(e) => setImportGroupId(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">Qrup secin</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    onClick={() => setShowImportModal(false)}
+                    className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                  >
+                    Legv et
+                  </button>
+                  <button
+                    onClick={handleImport}
+                    disabled={!importFile || importing}
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {importing ? "Import edilir..." : "Import Et"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Result summary */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-md bg-muted p-3 text-center">
+                    <p className="text-2xl font-bold text-foreground">{importResult.total}</p>
+                    <p className="text-xs text-muted-foreground">Umumi</p>
+                  </div>
+                  <div className="rounded-md bg-green-50 p-3 text-center">
+                    <p className="text-2xl font-bold text-green-700">{importResult.success}</p>
+                    <p className="text-xs text-green-600">Ugurlu</p>
+                  </div>
+                  <div className="rounded-md bg-red-50 p-3 text-center">
+                    <p className="text-2xl font-bold text-red-700">{importResult.failed}</p>
+                    <p className="text-xs text-red-600">Ugursuz</p>
+                  </div>
+                </div>
+
+                {/* Detail table */}
+                <div className="max-h-64 overflow-y-auto rounded-md border border-border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 border-b border-border bg-muted">
+                      <tr>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Ad</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">FIN</th>
+                        <th className="px-3 py-2 font-medium text-muted-foreground">Netice</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importResult.results.map((r, i) => (
+                        <tr key={i} className="border-b border-border last:border-0">
+                          <td className="px-3 py-2 text-foreground">{r.name || "?"}</td>
+                          <td className="px-3 py-2 font-mono text-foreground">{r.fin || "?"}</td>
+                          <td className="px-3 py-2">
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                              r.status === "Ugurla yaradildi" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                            }`}>
+                              {r.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowImportModal(false)}
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    Bagla
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

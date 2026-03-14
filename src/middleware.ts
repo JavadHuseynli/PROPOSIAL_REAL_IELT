@@ -12,7 +12,7 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Public routes
-  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
+  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth") || pathname === "/api/users/template") {
     return NextResponse.next();
   }
 
