@@ -29,13 +29,24 @@ export default function ReportsPage() {
   const [selectedGroup, setSelectedGroup] = useState<GroupReport | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
+  const [error, setError] = useState("");
+
   useEffect(() => {
     async function fetchReport() {
       try {
         const res = await fetch("/api/reports");
-        if (res.ok) setGroups(await res.json());
-      } catch {}
-      setLoading(false);
+        if (!res.ok) {
+          const text = await res.text();
+          setError(`API xetasi: ${res.status} - ${text.slice(0, 100)}`);
+          return;
+        }
+        const data = await res.json();
+        setGroups(data);
+      } catch (err: any) {
+        setError(`Xeta: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchReport();
   }, []);
@@ -82,6 +93,10 @@ export default function ReportsPage() {
 
   if (loading) {
     return <div className="flex h-64 items-center justify-center"><p className="text-muted-foreground">Yuklenir...</p></div>;
+  }
+
+  if (error) {
+    return <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">{error}</div>;
   }
 
   return (
