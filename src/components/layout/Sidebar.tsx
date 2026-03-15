@@ -12,6 +12,7 @@ const navByRole: Record<string, NavItem[]> = {
   ADMIN: [
     { label: "Dashboard", href: "/admin/dashboard" },
     { label: "İstifadəçilər", href: "/admin/users" },
+    { label: "Qruplar", href: "/admin/groups" },
     { label: "Testlər", href: "/admin/tests" },
     { label: "Nəzarət", href: "/admin/monitoring" },
     { label: "Hesabatlar", href: "/admin/reports" },
