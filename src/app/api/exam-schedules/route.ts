@@ -28,16 +28,16 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { groupId, examDate, note } = body;
+  const { groupId, examDate, startTime, endTime, note } = body;
 
-  if (!groupId || !examDate) {
-    return NextResponse.json({ error: "Qrup ve tarix teleb olunur" }, { status: 400 });
+  if (!groupId || !examDate || !startTime || !endTime) {
+    return NextResponse.json({ error: "Qrup, tarix, baslama ve bitme saati teleb olunur" }, { status: 400 });
   }
 
   const schedule = await prisma.examSchedule.upsert({
     where: { groupId },
-    create: { groupId, examDate: new Date(examDate), note: note || null },
-    update: { examDate: new Date(examDate), note: note || null },
+    create: { groupId, examDate: new Date(examDate), startTime, endTime, note: note || null },
+    update: { examDate: new Date(examDate), startTime, endTime, note: note || null },
     include: {
       group: { select: { id: true, name: true } },
     },

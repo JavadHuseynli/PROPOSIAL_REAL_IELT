@@ -90,7 +90,49 @@ export default function TestTakingPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [examDeadline, setExamDeadline] = useState<Date | null>(null);
+  const [examTimeLeft, setExamTimeLeft] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch exam schedule deadline
+  useEffect(() => {
+    async function fetchSchedule() {
+      try {
+        const res = await fetch("/api/exam-schedules/active");
+        if (!res.ok) return;
+        const schedule = await res.json();
+        if (schedule?.examDate && schedule?.endTime) {
+          const dateStr = new Date(schedule.examDate).toISOString().split("T")[0];
+          const deadline = new Date(`${dateStr}T${schedule.endTime}:00`);
+          setExamDeadline(deadline);
+        }
+      } catch {}
+    }
+    fetchSchedule();
+  }, []);
+
+  // Exam deadline countdown + auto-submit
+  useEffect(() => {
+    if (!examDeadline) return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      const diff = examDeadline.getTime() - now.getTime();
+      if (diff <= 0) {
+        setExamTimeLeft("Vaxt bitdi!");
+        clearInterval(interval);
+        // Auto submit
+        if (attempt && !submitting) {
+          handleSubmit();
+        }
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setExamTimeLeft(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [examDeadline, attempt, submitting]);
 
   // Auto-save to localStorage
   useEffect(() => {
@@ -279,14 +321,28 @@ export default function TestTakingPage() {
       {/* Sidebar - Question Navigation */}
       <div className="w-48 shrink-0">
         <div className="sticky top-6 space-y-4">
-          {/* Timer */}
+          {/* Exam deadline timer */}
+          {examTimeLeft && (
+            <div className={`rounded-lg border p-4 text-center ${
+              examTimeLeft === "Vaxt bitdi!" ? "border-destructive bg-destructive/10" : "border-orange-300 bg-orange-50"
+            }`}>
+              <p className="text-xs text-muted-foreground">Imtahan bitmesine</p>
+              <p className={`text-xl font-bold ${
+                examTimeLeft === "Vaxt bitdi!" ? "text-destructive" : "text-orange-700"
+              }`}>
+                {examTimeLeft}
+              </p>
+            </div>
+          )}
+
+          {/* Test timer */}
           {timeLeft !== null && (
             <div
               className={`rounded-lg border border-border bg-card p-4 text-center ${
                 timeLeft < 300 ? "border-destructive" : ""
               }`}
             >
-              <p className="text-xs text-muted-foreground">Qalan vaxt</p>
+              <p className="text-xs text-muted-foreground">Test vaxti</p>
               <p
                 className={`text-2xl font-bold ${
                   timeLeft < 300 ? "text-destructive" : "text-foreground"

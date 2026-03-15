@@ -69,6 +69,8 @@ export async function GET() {
       studentCount: group.students.length,
       avgScore: groupAvg,
       examDate: examSchedule?.examDate || null,
+      examStartTime: examSchedule?.startTime || null,
+      examEndTime: examSchedule?.endTime || null,
       examNote: examSchedule?.note || null,
       students,
     };
