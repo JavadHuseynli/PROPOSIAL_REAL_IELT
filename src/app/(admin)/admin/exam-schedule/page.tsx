@@ -61,12 +61,23 @@ export default function ExamSchedulePage() {
 
   const getTimeRemaining = (s: Schedule) => {
     const dateStr = new Date(s.examDate).toISOString().split("T")[0];
+    const start = new Date(`${dateStr}T${s.startTime}:00`);
     const end = new Date(`${dateStr}T${s.endTime}:00`);
-    const diff = end.getTime() - now.getTime();
+    const status = getExamStatus(s);
+
+    // Baslamamissa - baslama vaxtina qeder
+    const target = (status === "upcoming" || status === "waiting") ? start : end;
+    const diff = target.getTime() - now.getTime();
     if (diff <= 0) return "Bitdi";
-    const h = Math.floor(diff / 3600000);
+
+    const days = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
     const s2 = Math.floor((diff % 60000) / 1000);
+
+    if (days > 0) {
+      return `${days} gun ${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s2.toString().padStart(2, "0")}`;
+    }
     return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s2.toString().padStart(2, "0")}`;
   };
 
@@ -133,7 +144,7 @@ export default function ExamSchedulePage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Imtahan Tarixleri</h1>
           <p className="text-sm text-muted-foreground">
-            {now.toLocaleDateString("az-AZ", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })} | {now.toLocaleTimeString("az-AZ")}
+            {formatDate(now.toISOString())} | {now.toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
           </p>
         </div>
         <button onClick={() => { setShowModal(true); setFormError(""); }}
@@ -169,8 +180,10 @@ export default function ExamSchedulePage() {
                         )}
                         <span className={`text-sm font-semibold ${cfg.color}`}>{cfg.label}</span>
                       </div>
-                      {status === "active" && (
-                        <p className="mt-1 text-lg font-bold text-green-700">{getTimeRemaining(s)}</p>
+                      {(status === "active" || status === "upcoming" || status === "waiting") && (
+                        <p className={`mt-1 text-lg font-bold ${status === "active" ? "text-green-700" : "text-blue-700"}`}>
+                          {getTimeRemaining(s)}
+                        </p>
                       )}
                     </div>
                     <button onClick={() => handleDelete(s.id)} className="text-xs text-destructive hover:underline">Sil</button>
