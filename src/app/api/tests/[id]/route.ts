@@ -50,7 +50,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { title, type, description, duration, isActive } = body;
+  const { title, type, description, duration, isActive, examDate } = body;
 
   const existing = await prisma.test.findUnique({ where: { id } });
   if (!existing) {
@@ -65,6 +65,7 @@ export async function PUT(
       ...(description !== undefined && { description }),
       ...(duration !== undefined && { duration }),
       ...(isActive !== undefined && { isActive }),
+      ...(examDate !== undefined && { examDate: examDate ? new Date(examDate) : null }),
     },
     include: {
       createdBy: {

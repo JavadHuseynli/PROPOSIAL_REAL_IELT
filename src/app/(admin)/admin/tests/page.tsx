@@ -65,6 +65,7 @@ const emptyTestForm = {
   type: "LISTENING" as string,
   description: "",
   duration: "",
+  examDate: "",
 };
 
 const emptyQuestionForm = {
@@ -165,6 +166,7 @@ export default function AdminTestsPage() {
       type: test.type,
       description: test.description || "",
       duration: test.duration?.toString() || "",
+      examDate: (test as any).examDate ? new Date((test as any).examDate).toISOString().split("T")[0] : "",
     });
     setTestFormError("");
     setShowTestModal(true);
@@ -180,6 +182,7 @@ export default function AdminTestsPage() {
       type: testForm.type,
       description: testForm.description || null,
       duration: testForm.duration ? parseInt(testForm.duration) : null,
+      examDate: testForm.examDate || null,
     };
 
     try {
@@ -1155,6 +1158,20 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                   value={testForm.duration}
                   onChange={(e) =>
                     setTestForm({ ...testForm, duration: e.target.value })
+                  }
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">
+                  Imtahan Tarixi
+                </label>
+                <input
+                  type="date"
+                  value={testForm.examDate}
+                  onChange={(e) =>
+                    setTestForm({ ...testForm, examDate: e.target.value })
                   }
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />

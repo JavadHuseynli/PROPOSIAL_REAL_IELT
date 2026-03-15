@@ -69,14 +69,15 @@ model Group {
 }
 
 model Test {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   type        TestType
   description String?
   createdById String
-  isActive    Boolean  @default(true)
-  duration    Int?     // minutes
-  createdAt   DateTime @default(now())
+  isActive    Boolean   @default(true)
+  duration    Int?      // minutes
+  examDate    DateTime? // imtahan tarixi
+  createdAt   DateTime  @default(now())
 
   createdBy    User          @relation(fields: [createdById], references: [id])
   questions    Question[]
