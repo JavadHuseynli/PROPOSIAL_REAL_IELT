@@ -57,6 +57,9 @@ export function Sidebar() {
   const items = navByRole[role] || [];
   const [progress, setProgress] = useState<Progress | null>(null);
   const [showExitWarning, setShowExitWarning] = useState(false);
+  const [examTimeLeft, setExamTimeLeft] = useState<string | null>(null);
+  const [examEnded, setExamEnded] = useState(false);
+  const [examEndCountdown, setExamEndCountdown] = useState(5);
 
   // Fetch student progress
   useEffect(() => {
@@ -71,6 +74,68 @@ export function Sidebar() {
 
     fetchProgress();
     const interval = setInterval(fetchProgress, 15000);
+    return () => clearInterval(interval);
+  }, [role]);
+
+  // Exam deadline check - auto logout when time is up
+  useEffect(() => {
+    if (role !== "STUDENT") return;
+
+    let deadline: Date | null = null;
+
+    async function fetchSchedule() {
+      try {
+        const res = await fetch("/api/exam-schedules/active");
+        if (!res.ok) return;
+        const schedule = await res.json();
+        if (schedule?.examDate && schedule?.endTime) {
+          const dateStr = new Date(schedule.examDate).toISOString().split("T")[0];
+          deadline = new Date(`${dateStr}T${schedule.endTime}:00`);
+        }
+      } catch {}
+    }
+
+    fetchSchedule();
+
+    const interval = setInterval(() => {
+      if (!deadline) return;
+      const now = new Date();
+      const diff = deadline.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setExamTimeLeft(null);
+        setExamEnded(true);
+        // Auto submit all in-progress attempts
+        fetch("/api/attempts").then(r => r.json()).then(attempts => {
+          const inProgress = attempts.filter((a: any) => a.status === "IN_PROGRESS");
+          for (const a of inProgress) {
+            fetch(`/api/attempts/${a.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ answers: [], status: "COMPLETED" }),
+            }).catch(() => {});
+          }
+        }).catch(() => {});
+        // Countdown then logout
+        let count = 5;
+        const countInterval = setInterval(() => {
+          count--;
+          setExamEndCountdown(count);
+          if (count <= 0) {
+            clearInterval(countInterval);
+            signOut({ callbackUrl: "/login" });
+          }
+        }, 1000);
+        clearInterval(interval);
+        return;
+      }
+
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setExamTimeLeft(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`);
+    }, 1000);
+
     return () => clearInterval(interval);
   }, [role]);
 
@@ -121,6 +186,14 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Exam time remaining */}
+      {role === "STUDENT" && examTimeLeft && (
+        <div className="mx-4 mb-2 rounded-md border border-orange-300 bg-orange-50 p-3 text-center">
+          <p className="text-[10px] font-medium text-orange-600">Imtahan bitmesine</p>
+          <p className="text-lg font-bold text-orange-700">{examTimeLeft}</p>
+        </div>
+      )}
 
       {/* Student progress summary */}
       {role === "STUDENT" && progress && (
@@ -174,6 +247,28 @@ export function Sidebar() {
             : "Çıxış"}
         </button>
       </div>
+
+      {/* Exam ended - auto logout overlay */}
+      {examEnded && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80">
+          <div className="w-full max-w-sm rounded-lg bg-white p-8 text-center shadow-2xl">
+            <div className="mb-4 text-5xl">&#9200;</div>
+            <h2 className="mb-2 text-xl font-bold text-red-700">Imtahan Vaxti Bitdi!</h2>
+            <p className="mb-2 text-sm text-gray-600">
+              Butun cavablariniz avtomatik gonderildi.
+            </p>
+            <p className="text-lg font-bold text-gray-800">
+              {examEndCountdown} saniyeye cixish edilecek...
+            </p>
+            <div className="mt-4 h-2 w-full rounded-full bg-gray-200">
+              <div
+                className="h-2 rounded-full bg-red-500 transition-all duration-1000"
+                style={{ width: `${((5 - examEndCountdown) / 5) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Exit warning modal */}
       {showExitWarning && (
