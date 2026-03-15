@@ -71,15 +71,11 @@ model Group {
 
 model ExamSchedule {
   id       String   @id @default(cuid())
-  groupId  String
-  testId   String
+  groupId  String   @unique
   examDate DateTime
-  note     String?  // elave qeyd
+  note     String?
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  test  Test  @relation(fields: [testId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, testId])
 }
 
 model Test {
@@ -98,7 +94,6 @@ model Test {
   audioFiles     AudioFile[]
   writingTasks   WritingTask[]
   attempts       TestAttempt[]
-  examSchedules  ExamSchedule[]
 }
 
 model Question {

@@ -17,7 +17,8 @@ interface GroupReport {
   name: string;
   teacher: { id: string; name: string } | null;
   studentCount: number;
-  examDates: { listening: string | null; reading: string | null; writing: string | null };
+  examDate: string | null;
+  examNote: string | null;
   avgScore: number | null;
   students: StudentResult[];
 }
@@ -141,12 +142,11 @@ export default function ReportsPage() {
                   Muellim: {selectedGroup.teacher?.name || "-"} | {selectedGroup.studentCount} telebe
                   {selectedGroup.avgScore !== null && ` | Orta bal: ${selectedGroup.avgScore}`}
                 </p>
-                {(selectedGroup.examDates.listening || selectedGroup.examDates.reading || selectedGroup.examDates.writing) && (
-                  <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
-                    {selectedGroup.examDates.listening && <span>Listening: {formatDate(selectedGroup.examDates.listening)}</span>}
-                    {selectedGroup.examDates.reading && <span>Reading: {formatDate(selectedGroup.examDates.reading)}</span>}
-                    {selectedGroup.examDates.writing && <span>Writing: {formatDate(selectedGroup.examDates.writing)}</span>}
-                  </div>
+                {selectedGroup.examDate && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Imtahan tarixi: {formatDate(selectedGroup.examDate)}
+                    {selectedGroup.examNote && ` | ${selectedGroup.examNote}`}
+                  </p>
                 )}
               </div>
 
@@ -214,9 +214,7 @@ export default function ReportsPage() {
               <tbody>
                 <tr><td>Muellim:</td><td>{selectedGroup.teacher?.name || "-"}</td></tr>
                 <tr><td>Telebe sayi:</td><td>{selectedGroup.studentCount}</td></tr>
-                {selectedGroup.examDates.listening && <tr><td>Listening tarixi:</td><td>{formatDate(selectedGroup.examDates.listening)}</td></tr>}
-                {selectedGroup.examDates.reading && <tr><td>Reading tarixi:</td><td>{formatDate(selectedGroup.examDates.reading)}</td></tr>}
-                {selectedGroup.examDates.writing && <tr><td>Writing tarixi:</td><td>{formatDate(selectedGroup.examDates.writing)}</td></tr>}
+                {selectedGroup.examDate && <tr><td>Imtahan tarixi:</td><td>{formatDate(selectedGroup.examDate)}</td></tr>}
                 <tr><td>Hesabat tarixi:</td><td>{todayStr}</td></tr>
               </tbody>
             </table>

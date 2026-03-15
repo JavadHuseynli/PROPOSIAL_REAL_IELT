@@ -14,9 +14,7 @@ export async function GET() {
   const groups = await prisma.group.findMany({
     include: {
       teacher: { select: { id: true, name: true } },
-      examSchedules: {
-        include: { test: { select: { id: true, type: true, title: true } } },
-      },
+      examSchedules: true,
       students: {
         select: {
           id: true,
@@ -36,10 +34,7 @@ export async function GET() {
   });
 
   const report = groups.map((group) => {
-    // Get exam dates from schedule
-    const listeningSchedule = group.examSchedules.find((s) => s.test.type === "LISTENING");
-    const readingSchedule = group.examSchedules.find((s) => s.test.type === "READING");
-    const writingSchedule = group.examSchedules.find((s) => s.test.type === "WRITING");
+    const examSchedule = group.examSchedules[0] || null;
 
     const students = group.students.map((student) => {
       const listening = student.testAttempts.find((a) => a.test.type === "LISTENING");
@@ -73,11 +68,8 @@ export async function GET() {
       teacher: group.teacher,
       studentCount: group.students.length,
       avgScore: groupAvg,
-      examDates: {
-        listening: listeningSchedule?.examDate || null,
-        reading: readingSchedule?.examDate || null,
-        writing: writingSchedule?.examDate || null,
-      },
+      examDate: examSchedule?.examDate || null,
+      examNote: examSchedule?.note || null,
       students,
     };
   });
