@@ -14,6 +14,7 @@ const navByRole: Record<string, NavItem[]> = {
     { label: "İstifadəçilər", href: "/admin/users" },
     { label: "Qruplar", href: "/admin/groups" },
     { label: "Testlər", href: "/admin/tests" },
+    { label: "Imtahan Tarixi", href: "/admin/exam-schedule" },
     { label: "Nəzarət", href: "/admin/monitoring" },
     { label: "Hesabatlar", href: "/admin/reports" },
   ],

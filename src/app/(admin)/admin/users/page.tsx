@@ -257,6 +257,7 @@ export default function AdminUsersPage() {
               <th className="px-4 py-3 font-medium text-muted-foreground">FIN</th>
               <th className="px-4 py-3 font-medium text-muted-foreground">Email</th>
               <th className="px-4 py-3 font-medium text-muted-foreground">Rol</th>
+              <th className="px-4 py-3 font-medium text-muted-foreground">Qrup</th>
               <th className="px-4 py-3 font-medium text-muted-foreground">Əməliyyatlar</th>
             </tr>
           </thead>
@@ -271,6 +272,7 @@ export default function AdminUsersPage() {
                     {ROLE_LABELS[user.role] || user.role}
                   </span>
                 </td>
+                <td className="px-4 py-3 text-foreground">{user.group?.name || "—"}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <button
@@ -291,7 +293,7 @@ export default function AdminUsersPage() {
             ))}
             {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
                   İstifadəçi tapılmadı
                 </td>
               </tr>

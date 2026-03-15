@@ -14,6 +14,9 @@ export async function GET() {
   const groups = await prisma.group.findMany({
     include: {
       teacher: { select: { id: true, name: true } },
+      examSchedules: {
+        include: { test: { select: { id: true, type: true, title: true } } },
+      },
       students: {
         select: {
           id: true,
@@ -22,7 +25,7 @@ export async function GET() {
           testAttempts: {
             where: { status: { in: ["COMPLETED", "GRADED"] } },
             include: {
-              test: { select: { type: true, title: true, examDate: true } },
+              test: { select: { type: true, title: true } },
             },
             orderBy: { completedAt: "desc" },
           },
@@ -32,8 +35,12 @@ export async function GET() {
     orderBy: { name: "asc" },
   });
 
-  // Process data for each group
   const report = groups.map((group) => {
+    // Get exam dates from schedule
+    const listeningSchedule = group.examSchedules.find((s) => s.test.type === "LISTENING");
+    const readingSchedule = group.examSchedules.find((s) => s.test.type === "READING");
+    const writingSchedule = group.examSchedules.find((s) => s.test.type === "WRITING");
+
     const students = group.students.map((student) => {
       const listening = student.testAttempts.find((a) => a.test.type === "LISTENING");
       const reading = student.testAttempts.find((a) => a.test.type === "READING");
@@ -43,14 +50,13 @@ export async function GET() {
         id: student.id,
         name: student.name,
         fin: student.fin,
-        listening: listening ? { score: listening.score, date: listening.completedAt, examDate: listening.test.examDate } : null,
-        reading: reading ? { score: reading.score, date: reading.completedAt, examDate: reading.test.examDate } : null,
-        writing: writing ? { score: writing.score, date: writing.completedAt, examDate: writing.test.examDate } : null,
+        listening: listening ? { score: listening.score, date: listening.completedAt } : null,
+        reading: reading ? { score: reading.score, date: reading.completedAt } : null,
+        writing: writing ? { score: writing.score, date: writing.completedAt } : null,
         overall: null as number | null,
       };
     });
 
-    // Calculate overall for each student
     for (const s of students) {
       const scores = [s.listening?.score, s.reading?.score, s.writing?.score].filter((x): x is number => x !== null && x !== undefined);
       if (scores.length > 0) {
@@ -58,7 +64,6 @@ export async function GET() {
       }
     }
 
-    // Group averages
     const allScores = students.map((s) => s.overall).filter((x): x is number => x !== null);
     const groupAvg = allScores.length > 0 ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 2) / 2 : null;
 
@@ -68,6 +73,11 @@ export async function GET() {
       teacher: group.teacher,
       studentCount: group.students.length,
       avgScore: groupAvg,
+      examDates: {
+        listening: listeningSchedule?.examDate || null,
+        reading: readingSchedule?.examDate || null,
+        writing: writingSchedule?.examDate || null,
+      },
       students,
     };
   });

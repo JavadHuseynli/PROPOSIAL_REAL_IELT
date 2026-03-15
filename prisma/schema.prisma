@@ -64,8 +64,22 @@ model Group {
   teacherId String?
   createdAt DateTime @default(now())
 
-  teacher  User?  @relation("GroupTeacher", fields: [teacherId], references: [id])
-  students User[] @relation("GroupStudents")
+  teacher       User?          @relation("GroupTeacher", fields: [teacherId], references: [id])
+  students      User[]         @relation("GroupStudents")
+  examSchedules ExamSchedule[]
+}
+
+model ExamSchedule {
+  id       String   @id @default(cuid())
+  groupId  String
+  testId   String
+  examDate DateTime
+  note     String?  // elave qeyd
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  test  Test  @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, testId])
 }
 
 model Test {
@@ -79,11 +93,12 @@ model Test {
   examDate    DateTime? // imtahan tarixi
   createdAt   DateTime  @default(now())
 
-  createdBy    User          @relation(fields: [createdById], references: [id])
-  questions    Question[]
-  audioFiles   AudioFile[]
-  writingTasks WritingTask[]
-  attempts     TestAttempt[]
+  createdBy      User           @relation(fields: [createdById], references: [id])
+  questions      Question[]
+  audioFiles     AudioFile[]
+  writingTasks   WritingTask[]
+  attempts       TestAttempt[]
+  examSchedules  ExamSchedule[]
 }
 
 model Question {
