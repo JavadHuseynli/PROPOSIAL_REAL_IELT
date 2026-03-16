@@ -10,20 +10,25 @@ export async function GET() {
 
   const userId = session.user.id;
 
-  // Get all completed/graded attempts for this student
-  const completedAttempts = await prisma.testAttempt.findMany({
+  // Only check TODAY's completed attempts
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const todayAttempts = await prisma.testAttempt.findMany({
     where: {
       userId,
       status: { in: ["COMPLETED", "GRADED"] },
+      startedAt: { gte: today, lt: tomorrow },
     },
     include: {
       test: { select: { type: true } },
     },
   });
 
-  const completedTypes = new Set(completedAttempts.map((a) => a.test.type));
+  const completedTypes = new Set(todayAttempts.map((a) => a.test.type));
 
-  // Check if there are active tests for each type
   const activeTestCounts = await prisma.test.groupBy({
     by: ["type"],
     where: { isActive: true },
