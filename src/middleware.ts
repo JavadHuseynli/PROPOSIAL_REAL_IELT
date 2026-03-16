@@ -12,7 +12,7 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Public routes
-  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth") || pathname === "/api/users/template") {
+  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth") || pathname === "/api/users/template" || pathname === "/api/upload") {
     return NextResponse.next();
   }
 
@@ -51,5 +51,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|uploads|captures).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|uploads|captures|api/upload).*)"],
 };

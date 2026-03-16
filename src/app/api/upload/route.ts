@@ -4,15 +4,13 @@ import path from "path";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export const config = {
-  api: {
-    bodyParser: false,
-    responseLimit: false,
-  },
-};
+// Next.js App Router body size limit
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth check (middleware skips this route for FormData compatibility)
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
