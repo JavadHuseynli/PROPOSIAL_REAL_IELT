@@ -186,7 +186,7 @@ export default function TestTakingPage() {
         if (!res.ok) {
           const data = await res.json();
           if (res.status === 409) {
-            setError("Bu testi artıq tamamlamısınız. Yenidən başlaya bilməzsiniz.");
+            setError("Bu testi bugun artiq tamamlamisiniz.");
             setLoading(false);
             return;
           }

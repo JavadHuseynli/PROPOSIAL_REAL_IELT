@@ -45,18 +45,24 @@ export default function WritingPage() {
           return;
         }
 
-        const completedTestIds = attempts
-          .filter((a) => a.status === "COMPLETED" || a.status === "GRADED")
+        const today = new Date().toISOString().split("T")[0];
+        const todayCompletedIds = attempts
+          .filter((a) => (a.status === "COMPLETED" || a.status === "GRADED") && a.startedAt?.startsWith(today))
           .map((a) => a.testId);
 
-        const availableTests = tests.filter((t) => !completedTestIds.includes(t.id));
+        const availableTests = tests.filter((t) => !todayCompletedIds.includes(t.id));
 
         if (availableTests.length === 0) {
-          const lastAttempt = attempts
-            .filter((a) => (a.status === "COMPLETED" || a.status === "GRADED") && tests.some((t) => t.id === a.testId))[0];
-          const test = tests.find((t) => t.id === lastAttempt?.testId) || tests[0];
-          setAssignedTest(test);
-          setCompletedAttempt(lastAttempt || null);
+          const todayAttempt = attempts
+            .filter((a) => (a.status === "COMPLETED" || a.status === "GRADED") && a.startedAt?.startsWith(today) && tests.some((t) => t.id === a.testId))[0];
+          if (todayAttempt) {
+            const test = tests.find((t) => t.id === todayAttempt.testId) || tests[0];
+            setAssignedTest(test);
+            setCompletedAttempt(todayAttempt);
+          } else {
+            const test = tests[Math.floor(Math.random() * tests.length)];
+            setAssignedTest(test);
+          }
         } else {
           const seedKey = "ielts-writing-assigned";
           let savedTestId = localStorage.getItem(seedKey);

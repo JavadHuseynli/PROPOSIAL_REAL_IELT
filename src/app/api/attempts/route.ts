@@ -67,18 +67,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Test not found" }, { status: 404 });
   }
 
-  // Check if student already completed this test
-  const existingAttempt = await prisma.testAttempt.findFirst({
+  // Check if student has an active (today) completed attempt for this test type
+  // Students can retake tests on different exam dates
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const todayAttempt = await prisma.testAttempt.findFirst({
     where: {
       userId: session.user.id,
       testId,
       status: { in: ["COMPLETED", "GRADED"] },
+      startedAt: { gte: today, lt: tomorrow },
     },
   });
 
-  if (existingAttempt) {
+  if (todayAttempt) {
     return NextResponse.json(
-      { error: "Bu testi artıq tamamlamısınız" },
+      { error: "Bu testi bugun artiq tamamlamisiniz" },
       { status: 409 }
     );
   }
