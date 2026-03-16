@@ -2,38 +2,51 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useExamTime } from "@/lib/useExamTime";
 
-interface Test {
-  id: string;
-  title: string;
-  type: string;
-  description: string | null;
-  duration: number | null;
-  isActive: boolean;
-  _count: { questions: number };
-}
+interface Test { id: string; title: string; description: string | null; duration: number | null; isActive: boolean; _count: { questions: number }; }
 
 export default function ListeningPage() {
   const router = useRouter();
+  const { schedule } = useExamTime();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [assignedTest, setAssignedTest] = useState<Test | null>(null);
+  const [completed, setCompleted] = useState(false);
+  const [score, setScore] = useState<number | null>(null);
 
   useEffect(() => {
-    async function assignTest() {
+    async function load() {
       try {
-        const res = await fetch("/api/tests?type=LISTENING");
-        if (!res.ok) throw new Error("Testler yuklenilmedi");
-        const tests: Test[] = (await res.json()).filter((t: Test) => t.isActive);
+        const [testsRes, attemptsRes] = await Promise.all([
+          fetch("/api/tests?type=LISTENING"),
+          fetch("/api/attempts"),
+        ]);
+        const tests: Test[] = (await testsRes.json()).filter((t: Test) => t.isActive);
+        const attempts = attemptsRes.ok ? await attemptsRes.json() : [];
+
         if (tests.length === 0) { setError("Aktiv listening testi yoxdur"); return; }
+
         const test = tests[Math.floor(Math.random() * tests.length)];
         setAssignedTest(test);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Xeta");
-      } finally { setLoading(false); }
+
+        // Check if completed in current exam window
+        if (schedule?.examDate && schedule?.startTime && schedule?.endTime) {
+          const dateStr = new Date(schedule.examDate).toISOString().split("T")[0];
+          const start = new Date(`${dateStr}T${schedule.startTime}:00`);
+          const end = new Date(`${dateStr}T${schedule.endTime}:00`);
+          const done = attempts.find((a: any) =>
+            a.test.type === "LISTENING" &&
+            (a.status === "COMPLETED" || a.status === "GRADED") &&
+            new Date(a.startedAt) >= start && new Date(a.startedAt) <= end
+          );
+          if (done) { setCompleted(true); setScore(done.score); }
+        }
+      } catch (err: unknown) { setError(err instanceof Error ? err.message : "Xeta"); }
+      finally { setLoading(false); }
     }
-    assignTest();
-  }, []);
+    load();
+  }, [schedule]);
 
   if (loading) return <div className="flex h-64 items-center justify-center"><p className="text-muted-foreground">Yuklenir...</p></div>;
   if (error) return <div className="flex h-64 items-center justify-center"><p className="text-destructive">{error}</p></div>;
@@ -41,22 +54,28 @@ export default function ListeningPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Listening Test</h1>
-      </div>
+      <h1 className="text-3xl font-bold text-foreground">Listening Test</h1>
       <div className="rounded-lg border border-border bg-card p-8">
         <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700">Listening</span>
         <h2 className="mt-3 text-xl font-semibold text-foreground">{assignedTest.title}</h2>
-        {assignedTest.description && <p className="mt-2 text-sm text-muted-foreground">{assignedTest.description}</p>}
-        <div className="mt-4 text-sm text-muted-foreground">
-          {assignedTest.duration && <span>{assignedTest.duration} deqiqe</span>}
-        </div>
-        <button
-          onClick={() => router.push(`/student/tests/${assignedTest.id}`)}
-          className="mt-6 w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          Teste Bashla
-        </button>
+        {assignedTest.duration && <p className="mt-2 text-sm text-muted-foreground">{assignedTest.duration} deqiqe</p>}
+        {completed ? (
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center justify-between rounded-md bg-green-100 px-4 py-3">
+              <span className="text-sm font-medium text-green-800">Tamamlanib</span>
+              {score !== null && <span className="text-lg font-bold text-green-800">Band: {score}</span>}
+            </div>
+            <button onClick={() => router.push(`/student/tests/${assignedTest.id}/result`)}
+              className="w-full rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent">
+              Neticeye Bax
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => router.push(`/student/tests/${assignedTest.id}`)}
+            className="mt-6 w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            Teste Bashla
+          </button>
+        )}
       </div>
     </div>
   );
