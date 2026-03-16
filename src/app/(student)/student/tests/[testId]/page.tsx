@@ -355,25 +355,26 @@ export default function TestTakingPage() {
           )}
 
           {/* Question numbers */}
-          {test.type !== "WRITING" && questions.length > 0 && (
+          {test.type !== "WRITING" && questions.filter(q => q.points > 0).length > 0 && (
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="mb-2 text-xs font-medium text-muted-foreground">
                 Suallar
               </p>
               <div className="grid grid-cols-5 gap-1">
-                {questions.map((q, idx) => (
+                {questions.filter(q => q.points > 0).map((q) => (
                   <button
                     key={q.id}
-                    onClick={() => setCurrentQuestion(idx)}
+                    onClick={() => {
+                      const el = document.getElementById(`q-${q.id}`);
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
                     className={`flex h-8 w-8 items-center justify-center rounded text-xs font-medium transition-colors ${
-                      idx === currentQuestion
-                        ? "bg-primary text-primary-foreground"
-                        : answers[q.id]
-                          ? "bg-green-100 text-green-700"
-                          : "bg-muted text-muted-foreground hover:bg-accent"
+                      answers[q.id]
+                        ? "bg-green-100 text-green-700"
+                        : "bg-muted text-muted-foreground hover:bg-accent"
                     }`}
                   >
-                    {idx + 1}
+                    {q.order}
                   </button>
                 ))}
               </div>
@@ -595,7 +596,7 @@ function QuestionRenderer({
         : [];
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
+    <div id={`q-${question.id}`} className="rounded-lg border border-border bg-card p-6">
       <p className="mb-4 text-sm font-medium text-foreground">
         <span className="mr-2 text-primary">Sual {index + 1}.</span>
         {question.questionText}
