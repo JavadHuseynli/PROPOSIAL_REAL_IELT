@@ -354,30 +354,42 @@ export default function TestTakingPage() {
             </div>
           )}
 
-          {/* Question numbers */}
+          {/* Question numbers by Part */}
           {test.type !== "WRITING" && questions.filter(q => q.points > 0).length > 0 && (
             <div className="rounded-lg border border-border bg-card p-4">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">
-                Suallar
-              </p>
-              <div className="grid grid-cols-5 gap-1">
-                {questions.filter(q => q.points > 0).map((q) => (
-                  <button
-                    key={q.id}
-                    onClick={() => {
-                      const el = document.getElementById(`q-${q.id}`);
-                      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    }}
-                    className={`flex h-8 w-8 items-center justify-center rounded text-xs font-medium transition-colors ${
-                      answers[q.id]
-                        ? "bg-green-100 text-green-700"
-                        : "bg-muted text-muted-foreground hover:bg-accent"
-                    }`}
-                  >
-                    {q.order}
-                  </button>
-                ))}
-              </div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Suallar</p>
+              {(() => {
+                const realQs = questions.filter(q => q.points > 0);
+                const parts = new Map<number, typeof realQs>();
+                for (const q of realQs) {
+                  const sec = q.section || 1;
+                  if (!parts.has(sec)) parts.set(sec, []);
+                  parts.get(sec)!.push(q);
+                }
+                return Array.from(parts.entries()).sort((a, b) => a[0] - b[0]).map(([partNum, partQs]) => (
+                  <div key={partNum} className="mb-2">
+                    <p className="mb-1 text-[10px] font-bold text-purple-600">Part {partNum}</p>
+                    <div className="grid grid-cols-5 gap-1">
+                      {partQs.map((q) => (
+                        <button
+                          key={q.id}
+                          onClick={() => {
+                            const el = document.getElementById(`q-${q.id}`);
+                            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                          }}
+                          className={`flex h-7 w-7 items-center justify-center rounded text-[10px] font-medium transition-colors ${
+                            answers[q.id]
+                              ? "bg-green-100 text-green-700"
+                              : "bg-muted text-muted-foreground hover:bg-accent"
+                          }`}
+                        >
+                          {q.order}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
           )}
 
@@ -436,9 +448,10 @@ export default function TestTakingPage() {
 
                     {audio && (
                       <div className="border-b border-border bg-purple-50/30 px-5 py-3">
-                        <audio controls className="w-full" preload="metadata">
-                          <source src={audio.filePath.startsWith("/") ? audio.filePath : `/uploads/${audio.filePath}`} type="audio/mpeg" />
-                        </audio>
+                        <ListeningAudioPlayer
+                          src={audio.filePath.startsWith("/") ? audio.filePath : `/uploads/${audio.filePath}`}
+                          partNum={partNum}
+                        />
                       </div>
                     )}
 
@@ -840,6 +853,114 @@ function QuestionNavButtons({
       >
         Növbəti
       </button>
+    </div>
+  );
+}
+
+// Listening Audio Player - max 2 plays, no seek
+function ListeningAudioPlayer({ src, partNum }: { src: string; partNum: number }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playCount, setPlayCount] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [started, setStarted] = useState(false);
+  const maxPlays = 2;
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onLoadedMetadata = () => setDuration(audio.duration);
+    const onEnded = () => {
+      setIsPlaying(false);
+      setPlayCount((prev) => prev + 1);
+    };
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+
+    return () => {
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+    };
+  }, []);
+
+  const handleStart = () => {
+    if (playCount >= maxPlays) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (!started) {
+      setStarted(true);
+      audio.currentTime = 0;
+    }
+    audio.play();
+  };
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const exhausted = playCount >= maxPlays;
+
+  return (
+    <div>
+      <audio ref={audioRef} src={src} preload="metadata" />
+
+      {exhausted ? (
+        <div className="rounded-md bg-red-50 px-4 py-2 text-center text-xs font-medium text-red-600">
+          Part {partNum} audio limiti bitdi (2/2 dinleme istifade olundu)
+        </div>
+      ) : !started ? (
+        <button
+          onClick={handleStart}
+          className="w-full rounded-md bg-purple-600 px-4 py-3 text-sm font-medium text-white hover:bg-purple-700"
+        >
+          Part {partNum} Audio Bashlat ({maxPlays - playCount} dinleme haqqi)
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            {!isPlaying ? (
+              <button
+                onClick={handleStart}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 text-white hover:bg-purple-700"
+              >
+                &#9654;
+              </button>
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-400 text-white">
+                &#9654;
+              </div>
+            )}
+            <div className="flex-1">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-purple-100">
+                <div className="h-2 rounded-full bg-purple-600 transition-all" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>Part {partNum}</span>
+            <span>{playCount + (isPlaying ? 1 : 0)}/{maxPlays} dinleme</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
