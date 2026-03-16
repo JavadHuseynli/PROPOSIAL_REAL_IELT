@@ -1017,48 +1017,6 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                 <div className="py-8 text-center text-muted-foreground">Yüklənir...</div>
               ) : (
                 <>
-                  {/* LISTENING: Audio files section */}
-                  {selectedTest.type === "LISTENING" && (
-                    <div className="mb-6">
-                      <h3 className="mb-3 text-sm font-semibold text-foreground">
-                        Audio Fayllar
-                      </h3>
-                      <div className="space-y-2">
-                        {(selectedTest.audioFiles || []).map((audio) => (
-                          <div
-                            key={audio.id}
-                            className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2"
-                          >
-                            <div className="text-sm text-foreground">
-                              Bölmə {audio.section} — {audio.filePath.split("/").pop()}
-                              {audio.duration && (
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  ({Math.floor(audio.duration / 60)}:{(audio.duration % 60).toString().padStart(2, "0")})
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => handleDeleteAudio(audio.id)}
-                              className="rounded-md border border-destructive px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
-                            >
-                              Sil
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted">
-                        {audioUploading ? "Yüklənir..." : "Audio Yüklə"}
-                        <input
-                          type="file"
-                          accept="audio/*"
-                          className="hidden"
-                          onChange={handleAudioUpload}
-                          disabled={audioUploading}
-                        />
-                      </label>
-                    </div>
-                  )}
-
                   {/* WRITING: Writing tasks section */}
                   {selectedTest.type === "WRITING" && (
                     <div className="mb-6">
@@ -1246,18 +1204,6 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                           </button>
                         </div>
                       </div>
-
-                      {/* Audio files */}
-                      {(selectedTest.audioFiles || []).length > 0 && (
-                        <div className="mb-3 rounded-md border border-border bg-muted/20 p-3">
-                          <p className="mb-2 text-xs font-semibold text-muted-foreground">Audio fayllar</p>
-                          {(selectedTest.audioFiles || []).map((a) => (
-                            <div key={a.id} className="mb-1 text-xs text-foreground">
-                              Section {a.section}: <a href={a.filePath} className="text-primary hover:underline">{a.filePath}</a>
-                            </div>
-                          ))}
-                        </div>
-                      )}
 
                       {getPassages().length === 0 ? (
                         <div className="py-4 text-center text-sm text-muted-foreground">
