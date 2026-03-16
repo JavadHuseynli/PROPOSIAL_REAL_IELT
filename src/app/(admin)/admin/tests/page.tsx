@@ -1246,19 +1246,38 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                                       Sil
                                     </button>
                                     <label className="cursor-pointer rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 hover:bg-purple-200">
-                                      Audio yukle
+                                      {audio ? "Audio deyish" : "Audio yukle"}
                                       <input type="file" accept="audio/*" className="hidden" onChange={async (e) => {
                                         const file = e.target.files?.[0];
                                         if (!file || !selectedTest) return;
+                                        // Delete old audio for this section
+                                        if (audio) {
+                                          await fetch(`/api/audio/${audio.id}`, { method: "DELETE" });
+                                        }
                                         const fd = new FormData();
                                         fd.append("file", file);
                                         fd.append("testId", selectedTest.id);
                                         fd.append("section", String(part.num));
                                         fd.append("order", String(part.num));
-                                        await fetch("/api/upload", { method: "POST", body: fd });
-                                        await fetchTestDetail(selectedTest.id);
+                                        const res = await fetch("/api/upload", { method: "POST", body: fd });
+                                        if (res.ok) {
+                                          await fetchTestDetail(selectedTest.id);
+                                        } else {
+                                          alert("Audio yuklenme xetasi");
+                                        }
                                       }} />
                                     </label>
+                                    {audio && (
+                                      <button
+                                        onClick={async () => {
+                                          await fetch(`/api/audio/${audio.id}`, { method: "DELETE" });
+                                          if (selectedTest) await fetchTestDetail(selectedTest.id);
+                                        }}
+                                        className="text-xs text-destructive hover:underline"
+                                      >
+                                        Audio sil
+                                      </button>
+                                    )}
                                     <button
                                       onClick={() => {
                                         setActiveSection(part.num);
@@ -1273,10 +1292,16 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                                 </div>
                                 {/* Audio player */}
                                 {audio && (
-                                  <div className="border-b border-border bg-purple-50/30 px-4 py-2">
-                                    <audio controls className="h-8 w-full" preload="none">
+                                  <div className="border-b border-border bg-purple-50/50 px-4 py-3">
+                                    <p className="mb-1 text-[10px] text-purple-600">{audio.filePath.split("/").pop()}</p>
+                                    <audio controls className="w-full" preload="metadata">
                                       <source src={audio.filePath} type="audio/mpeg" />
                                     </audio>
+                                  </div>
+                                )}
+                                {!audio && (
+                                  <div className="border-b border-border bg-yellow-50 px-4 py-2 text-xs text-yellow-700">
+                                    Audio yuklenilmeyib. "Audio yukle" basib fayl elave edin.
                                   </div>
                                 )}
                                 {/* Part description */}
