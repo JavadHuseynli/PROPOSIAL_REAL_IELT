@@ -34,6 +34,7 @@ const navByRole: Record<string, NavItem[]> = {
     { label: "Listening", href: "/student/listening" },
     { label: "Reading", href: "/student/reading" },
     { label: "Writing", href: "/student/writing" },
+    { label: "Neticelerim", href: "/student/results" },
   ],
 };
 

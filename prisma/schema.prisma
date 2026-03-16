@@ -71,11 +71,13 @@ model Group {
 
 model ExamSchedule {
   id        String   @id @default(cuid())
-  groupId   String   @unique
-  examDate  DateTime // gun
-  startTime String   // baslama saati "09:00"
-  endTime   String   // bitmee saati "12:00"
+  groupId   String
+  title     String   @default("IELTS Imtahan")
+  examDate  DateTime
+  startTime String   // "09:00"
+  endTime   String   // "12:00"
   note      String?
+  createdAt DateTime @default(now())
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 interface Group { id: string; name: string; _count?: { students: number }; }
 interface Schedule {
   id: string;
+  title: string;
   examDate: string;
   startTime: string;
   endTime: string;
@@ -20,6 +21,7 @@ export default function ExamSchedulePage() {
 
   const [showModal, setShowModal] = useState(false);
   const [formGroupId, setFormGroupId] = useState("");
+  const [formTitle, setFormTitle] = useState("IELTS Imtahan");
   const [formDate, setFormDate] = useState("");
   const [formStartTime, setFormStartTime] = useState("09:00");
   const [formEndTime, setFormEndTime] = useState("12:00");
@@ -92,6 +94,7 @@ export default function ExamSchedulePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           groupId: formGroupId,
+          title: formTitle || "IELTS Imtahan",
           examDate: formDate,
           startTime: formStartTime,
           endTime: formEndTime,
@@ -104,7 +107,7 @@ export default function ExamSchedulePage() {
         return;
       }
       setShowModal(false);
-      setFormGroupId(""); setFormDate(""); setFormStartTime("09:00"); setFormEndTime("12:00"); setFormNote("");
+      setFormGroupId(""); setFormTitle("IELTS Imtahan"); setFormDate(""); setFormStartTime("09:00"); setFormEndTime("12:00"); setFormNote("");
       await fetchAll();
     } catch (err: any) {
       setFormError(err.message);
@@ -166,7 +169,7 @@ export default function ExamSchedulePage() {
               <div key={s.id} className={`rounded-lg border p-5 ${cfg.bg}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground">{s.group.name}</h3>
+                    <h3 className="text-lg font-semibold text-foreground">{s.group.name} - {s.title}</h3>
                     <p className="text-sm text-muted-foreground">
                       {formatDate(s.examDate)} | {s.startTime} - {s.endTime}
                     </p>
@@ -211,6 +214,12 @@ export default function ExamSchedulePage() {
               <div className="mb-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{formError}</div>
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium">Imtahan Adi</label>
+                <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="Mes: IELTS Mock Test 1"
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Qrup</label>
                 <select required value={formGroupId} onChange={(e) => setFormGroupId(e.target.value)}
