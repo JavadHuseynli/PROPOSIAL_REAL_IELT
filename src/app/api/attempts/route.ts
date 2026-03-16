@@ -67,27 +67,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Test not found" }, { status: 404 });
   }
 
-  // Check if student has an active (today) completed attempt for this test type
-  // Students can retake tests on different exam dates
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  const todayAttempt = await prisma.testAttempt.findFirst({
+  // Check for active IN_PROGRESS attempt (prevent double start)
+  const activeAttempt = await prisma.testAttempt.findFirst({
     where: {
       userId: session.user.id,
       testId,
-      status: { in: ["COMPLETED", "GRADED"] },
-      startedAt: { gte: today, lt: tomorrow },
+      status: "IN_PROGRESS",
     },
   });
 
-  if (todayAttempt) {
-    return NextResponse.json(
-      { error: "Bu testi bugun artiq tamamlamisiniz" },
-      { status: 409 }
-    );
+  if (activeAttempt) {
+    // Return existing attempt instead of creating new
+    return NextResponse.json(activeAttempt, { status: 200 });
   }
 
   const attempt = await prisma.testAttempt.create({

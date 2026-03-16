@@ -10,24 +10,58 @@ export async function GET() {
 
   const userId = session.user.id;
 
-  // Only check TODAY's completed attempts
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  const todayAttempts = await prisma.testAttempt.findMany({
-    where: {
-      userId,
-      status: { in: ["COMPLETED", "GRADED"] },
-      startedAt: { gte: today, lt: tomorrow },
-    },
-    include: {
-      test: { select: { type: true } },
-    },
+  // Get user's group and active exam schedule
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { groupId: true },
   });
 
-  const completedTypes = new Set(todayAttempts.map((a) => a.test.type));
+  let examStart: Date | null = null;
+  let examEnd: Date | null = null;
+
+  if (user?.groupId) {
+    const now = new Date();
+    const schedules = await prisma.examSchedule.findMany({
+      where: { groupId: user.groupId },
+      orderBy: { examDate: "desc" },
+    });
+
+    // Find today's active or most recent exam
+    for (const s of schedules) {
+      const dateStr = s.examDate.toISOString().split("T")[0];
+      const start = new Date(`${dateStr}T${s.startTime}:00`);
+      const end = new Date(`${dateStr}T${s.endTime}:00`);
+      if (now >= start && now <= end) {
+        examStart = start;
+        examEnd = end;
+        break;
+      }
+    }
+  }
+
+  // Check attempts completed during active exam time window
+  const where: any = {
+    userId,
+    status: { in: ["COMPLETED", "GRADED"] },
+  };
+
+  if (examStart && examEnd) {
+    where.startedAt = { gte: examStart, lte: examEnd };
+  } else {
+    // No active exam - check today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    where.startedAt = { gte: today, lt: tomorrow };
+  }
+
+  const attempts = await prisma.testAttempt.findMany({
+    where,
+    include: { test: { select: { type: true } } },
+  });
+
+  const completedTypes = new Set(attempts.map((a) => a.test.type));
 
   const activeTestCounts = await prisma.test.groupBy({
     by: ["type"],
@@ -39,13 +73,11 @@ export async function GET() {
     .filter((t) => t._count > 0)
     .map((t) => t.type);
 
-  const progress = {
+  return NextResponse.json({
     LISTENING: completedTypes.has("LISTENING"),
     READING: completedTypes.has("READING"),
     WRITING: completedTypes.has("WRITING"),
     allCompleted: requiredTypes.every((t) => completedTypes.has(t)),
     requiredTypes,
-  };
-
-  return NextResponse.json(progress);
+  });
 }
