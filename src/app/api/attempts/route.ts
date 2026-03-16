@@ -77,8 +77,37 @@ export async function POST(req: NextRequest) {
   });
 
   if (activeAttempt) {
-    // Return existing attempt instead of creating new
     return NextResponse.json(activeAttempt, { status: 200 });
+  }
+
+  // Check if already completed in current exam schedule time window
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { groupId: true } });
+  if (user?.groupId) {
+    const now = new Date();
+    const schedules = await prisma.examSchedule.findMany({ where: { groupId: user.groupId } });
+    for (const s of schedules) {
+      const dateStr = s.examDate.toISOString().split("T")[0];
+      const start = new Date(`${dateStr}T${s.startTime}:00`);
+      const end = new Date(`${dateStr}T${s.endTime}:00`);
+      if (now >= start && now <= end) {
+        // In active exam - check if already completed this test type in this window
+        const alreadyDone = await prisma.testAttempt.findFirst({
+          where: {
+            userId: session.user.id,
+            testId,
+            status: { in: ["COMPLETED", "GRADED"] },
+            startedAt: { gte: start, lte: end },
+          },
+        });
+        if (alreadyDone) {
+          return NextResponse.json(
+            { error: "Bu testi bu imtahanda artiq tamamlamisiniz" },
+            { status: 409 }
+          );
+        }
+        break;
+      }
+    }
   }
 
   const attempt = await prisma.testAttempt.create({

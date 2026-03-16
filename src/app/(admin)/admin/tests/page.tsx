@@ -78,6 +78,7 @@ const emptyQuestionForm = {
   noteAnswers: {} as Record<string, string>,
   imageUrl: "",
   section: "1",
+  maxSelections: "1", // nece cavab secmek olar
 };
 
 const emptyPassageForm = {
@@ -317,12 +318,14 @@ export default function AdminTestsPage() {
     let correctAnswer = questionForm.correctAnswer;
 
     if (questionForm.questionType === "MULTIPLE_CHOICE") {
-      options = questionForm.options.filter((o) => o.trim() !== "");
-      if (options.length < 2) {
+      const optItems = questionForm.options.filter((o) => o.trim() !== "");
+      if (optItems.length < 2) {
         setQuestionFormError("Ən azı 2 seçim daxil edin");
         setQuestionSubmitting(false);
         return;
       }
+      const maxSel = parseInt(questionForm.maxSelections) || 1;
+      options = { items: optItems, maxSelections: maxSel };
     } else if (questionForm.questionType === "MATCHING") {
       try {
         options = JSON.parse(questionForm.matchingPairs);

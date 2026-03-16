@@ -31,6 +31,14 @@ export async function GET(
           question: true,
         },
       },
+      writingSubmissions: {
+        include: {
+          writingTask: true,
+          review: {
+            include: { inlineComments: true },
+          },
+        },
+      },
     },
   });
 
