@@ -18,6 +18,7 @@ interface Attempt {
   testId: string;
   status: string;
   score: number | null;
+  startedAt: string;
 }
 
 export default function ReadingPage() {
