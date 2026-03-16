@@ -103,9 +103,12 @@ model Question {
   testId        String
   questionText  String
   questionType  QuestionType
-  options       Json?        // for multiple choice, matching etc
+  options       Json?
   correctAnswer String
   imageUrl      String?
+  section       Int          @default(1) // passage/section nomresi
+  passageText   String?      // reading passage metni (yalniz 1-ci sualda saxlanilir)
+  passageTitle  String?      // passage basligi
   order         Int          @default(0)
   points        Int          @default(1)
 

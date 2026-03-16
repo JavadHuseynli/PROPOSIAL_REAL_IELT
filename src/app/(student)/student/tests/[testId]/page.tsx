@@ -11,6 +11,9 @@ interface Question {
   questionType: string;
   options: string[] | null;
   imageUrl: string | null;
+  section: number;
+  passageText: string | null;
+  passageTitle: string | null;
   order: number;
   points: number;
 }
@@ -443,34 +446,65 @@ export default function TestTakingPage() {
           </div>
         )}
 
-        {/* READING: Passage + Questions side by side */}
-        {test.type === "READING" && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="rounded-lg border border-border bg-card p-6">
-              <h3 className="mb-3 text-sm font-semibold text-foreground">
-                Mətn
-              </h3>
-              <div className="prose max-w-none text-sm text-foreground whitespace-pre-wrap">
-                {test.description || "Mətn mövcud deyil."}
-              </div>
+        {/* READING: All passages with their questions */}
+        {test.type === "READING" && (() => {
+          // Group questions by section
+          const sections = new Map<number, Question[]>();
+          for (const q of questions) {
+            const sec = q.section || 1;
+            if (!sections.has(sec)) sections.set(sec, []);
+            sections.get(sec)!.push(q);
+          }
+          const sortedSections = Array.from(sections.entries()).sort((a, b) => a[0] - b[0]);
+
+          return (
+            <div className="space-y-8">
+              {sortedSections.map(([secNum, secQuestions]) => {
+                // Find passage text - from first question's passageText or test description for section 1
+                const firstQ = secQuestions[0];
+                const passageText = firstQ?.passageText || (secNum === 1 ? test.description : null);
+                const passageTitle = firstQ?.passageTitle || `Passage ${secNum}`;
+
+                return (
+                  <div key={secNum} className="rounded-lg border border-border bg-card overflow-hidden">
+                    {/* Passage header */}
+                    <div className="border-b border-border bg-muted/30 px-6 py-3">
+                      <h3 className="text-sm font-bold text-primary">READING PASSAGE {secNum}</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-0 lg:grid-cols-2">
+                      {/* Passage text - left */}
+                      <div className="border-r border-border p-6 lg:max-h-[600px] lg:overflow-y-auto">
+                        <h4 className="mb-3 text-lg font-bold text-foreground">{passageTitle}</h4>
+                        <div className="prose max-w-none text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                          {passageText || "Metn movcud deyil."}
+                        </div>
+                      </div>
+
+                      {/* Questions - right */}
+                      <div className="p-6 lg:max-h-[600px] lg:overflow-y-auto">
+                        <h4 className="mb-4 text-sm font-semibold text-muted-foreground">
+                          Questions {secQuestions[0]?.order}-{secQuestions[secQuestions.length - 1]?.order}
+                        </h4>
+                        <div className="space-y-4">
+                          {secQuestions.map((q, idx) => (
+                            <QuestionRenderer
+                              key={q.id}
+                              question={q}
+                              index={q.order - 1}
+                              answer={answers[q.id] || ""}
+                              onAnswer={setAnswer}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="space-y-4">
-              {questions.length > 0 && (
-                <QuestionRenderer
-                  question={questions[currentQuestion]}
-                  index={currentQuestion}
-                  answer={answers[questions[currentQuestion].id] || ""}
-                  onAnswer={setAnswer}
-                />
-              )}
-              <QuestionNavButtons
-                current={currentQuestion}
-                total={questions.length}
-                onChange={setCurrentQuestion}
-              />
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* WRITING: Prompt + Text Editor */}
         {test.type === "WRITING" && (
