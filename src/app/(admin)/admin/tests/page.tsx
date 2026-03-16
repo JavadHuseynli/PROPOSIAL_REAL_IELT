@@ -1263,7 +1263,8 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                                         if (res.ok) {
                                           await fetchTestDetail(selectedTest.id);
                                         } else {
-                                          alert("Audio yuklenme xetasi");
+                                          const err = await res.json().catch(() => ({ error: "Bilinmeyen xeta" }));
+                                          alert("Audio yuklenme xetasi: " + (err.error || res.statusText));
                                         }
                                       }} />
                                     </label>
