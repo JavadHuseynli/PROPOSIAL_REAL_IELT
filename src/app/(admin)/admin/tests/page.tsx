@@ -513,24 +513,43 @@ export default function AdminTestsPage() {
     const sectionNum = parseInt(passageForm.section) || 1;
 
     try {
-      const res = await fetch("/api/questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          testId: selectedTest.id,
-          questionText: `Reading Passage ${sectionNum}`,
-          questionType: "FILL_BLANK",
-          correctAnswer: "_",
-          section: sectionNum,
-          passageTitle: passageForm.title,
-          passageText: passageForm.text,
-          order: 0,
-          points: 0,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Passage elave edilemedi");
+      // Check if passage placeholder already exists for this section
+      const existingPassage = (selectedTest.questions || []).find(
+        (q: any) => q.section === sectionNum && q.passageText
+      );
+
+      if (existingPassage) {
+        // Update existing passage
+        const res = await fetch(`/api/questions/${existingPassage.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            passageTitle: passageForm.title,
+            passageText: passageForm.text,
+          }),
+        });
+        if (!res.ok) throw new Error("Passage yenilene bilmedi");
+      } else {
+        // Create new passage placeholder
+        const res = await fetch("/api/questions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            testId: selectedTest.id,
+            questionText: `Reading Passage ${sectionNum}`,
+            questionType: "FILL_BLANK",
+            correctAnswer: "_",
+            section: sectionNum,
+            passageTitle: passageForm.title,
+            passageText: passageForm.text,
+            order: 0,
+            points: 0,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Passage elave edilemedi");
+        }
       }
 
       setShowPassageModal(false);
@@ -1127,16 +1146,41 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                                   <span className="text-xs font-bold text-primary">PASSAGE {passage.num}</span>
                                   {passage.title && <span className="ml-2 text-sm font-medium text-foreground">{passage.title}</span>}
                                 </div>
-                                <button
-                                  onClick={() => {
-                                    setActiveSection(passage.num);
-                                    setQuestionForm({ ...emptyQuestionForm, section: String(passage.num) });
-                                    openCreateQuestionModal();
-                                  }}
-                                  className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
-                                >
-                                  + Sual
-                                </button>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setPassageForm({ title: passage.title, text: passage.text, section: String(passage.num) });
+                                      setPassageError("");
+                                      setShowPassageModal(true);
+                                    }}
+                                    className="text-xs text-primary hover:underline"
+                                  >
+                                    Redakte
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      if (!confirm(`Passage ${passage.num} ve butun suallari silinecek. Eminsiniz?`)) return;
+                                      // Delete all questions in this section
+                                      for (const q of passage.questions) {
+                                        await fetch(`/api/questions/${q.id}`, { method: "DELETE" });
+                                      }
+                                      if (selectedTest) await fetchTestDetail(selectedTest.id);
+                                    }}
+                                    className="text-xs text-destructive hover:underline"
+                                  >
+                                    Sil
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setActiveSection(passage.num);
+                                      setQuestionForm({ ...emptyQuestionForm, section: String(passage.num) });
+                                      openCreateQuestionModal();
+                                    }}
+                                    className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
+                                  >
+                                    + Sual
+                                  </button>
+                                </div>
                               </div>
                               {passage.text && (
                                 <div className="max-h-32 overflow-y-auto border-b border-border bg-muted/10 px-4 py-2 text-xs text-muted-foreground">

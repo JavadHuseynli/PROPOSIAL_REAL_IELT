@@ -16,7 +16,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { questionText, questionType, options, correctAnswer, order, points } = body;
+  const { questionText, questionType, options, correctAnswer, order, points, imageUrl, section, passageText, passageTitle } = body;
 
   const existing = await prisma.question.findUnique({ where: { id } });
   if (!existing) {
@@ -32,6 +32,10 @@ export async function PUT(
       ...(correctAnswer !== undefined && { correctAnswer }),
       ...(order !== undefined && { order }),
       ...(points !== undefined && { points }),
+      ...(imageUrl !== undefined && { imageUrl }),
+      ...(section !== undefined && { section }),
+      ...(passageText !== undefined && { passageText }),
+      ...(passageTitle !== undefined && { passageTitle }),
     },
   });
 
