@@ -103,7 +103,19 @@ export async function DELETE(
     return NextResponse.json({ error: "Test not found" }, { status: 404 });
   }
 
-  await prisma.test.delete({ where: { id } });
+  try {
+    // Delete related attempts first (cascade doesn't cover all)
+    const attempts = await prisma.testAttempt.findMany({ where: { testId: id } });
+    for (const a of attempts) {
+      await prisma.violation.deleteMany({ where: { attemptId: a.id } });
+      await prisma.writingSubmission.deleteMany({ where: { attemptId: a.id } });
+      await prisma.answer.deleteMany({ where: { attemptId: a.id } });
+    }
+    await prisma.testAttempt.deleteMany({ where: { testId: id } });
 
-  return NextResponse.json({ message: "Test deleted" });
+    await prisma.test.delete({ where: { id } });
+    return NextResponse.json({ message: "Test deleted" });
+  } catch (err: any) {
+    return NextResponse.json({ error: "Silme ugursuz oldu: " + (err.message || "").slice(0, 100) }, { status: 500 });
+  }
 }
