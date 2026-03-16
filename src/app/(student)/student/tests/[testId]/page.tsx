@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { countWords } from "@/lib/utils";
-import { ProctorGuard } from "@/components/test/ProctorGuard";
 
 interface Question {
   id: string;
@@ -320,7 +319,6 @@ export default function TestTakingPage() {
 
   return (
     <div className="flex gap-6">
-      <ProctorGuard attemptId={attempt?.id || null} enabled={!!attempt} />
       {/* Sidebar - Question Navigation */}
       <div className="w-48 shrink-0">
         <div className="sticky top-6 space-y-4">

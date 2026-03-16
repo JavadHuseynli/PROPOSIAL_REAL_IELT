@@ -7,7 +7,13 @@ interface ProctorGuardProps {
   enabled: boolean;
 }
 
+// Make stream accessible globally so test page can use it
+if (typeof window !== "undefined") {
+  (window as any).__proctorStream = (window as any).__proctorStream || null;
+}
+
 export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
+  const isGlobal = attemptId === "global";
   const leftAt = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -19,7 +25,7 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
   // Send screenshot to server
   const sendCapture = useCallback(
     async (image: string) => {
-      if (!attemptId) return;
+      if (!attemptId || isGlobal) return;
       try {
         await fetch("/api/screen-capture", {
           method: "POST",
@@ -105,7 +111,7 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
 
   const reportViolation = useCallback(
     async (type: string, detail?: string, duration?: number) => {
-      if (!attemptId || !enabled) return;
+      if (!attemptId || !enabled || isGlobal) return;
       try {
         await fetch("/api/violations", {
           method: "POST",
@@ -114,7 +120,7 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
         });
       } catch {}
     },
-    [attemptId, enabled]
+    [attemptId, enabled, isGlobal]
   );
 
   // Request screen sharing
@@ -126,6 +132,7 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
       });
 
       streamRef.current = stream;
+      if (typeof window !== "undefined") (window as any).__proctorStream = stream;
       setScreenSharing(true);
       setShowPermissionModal(false);
 
@@ -166,12 +173,26 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
 
   // Show permission modal on start
   useEffect(() => {
-    if (enabled && attemptId) setShowPermissionModal(true);
+    if (enabled) {
+      // Check if already sharing (from global instance)
+      if (typeof window !== "undefined" && (window as any).__proctorStream) {
+        const existing = (window as any).__proctorStream as MediaStream;
+        const track = existing.getVideoTracks()[0];
+        if (track && track.readyState === "live") {
+          streamRef.current = existing;
+          setScreenSharing(true);
+          return;
+        }
+      }
+      setShowPermissionModal(true);
+    }
     return () => {
-      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
-      if (captureIntervalRef.current) clearInterval(captureIntervalRef.current);
+      // Only cleanup if NOT global (global stays active across pages)
+      if (!isGlobal) {
+        if (captureIntervalRef.current) clearInterval(captureIntervalRef.current);
+      }
     };
-  }, [enabled, attemptId]);
+  }, [enabled, isGlobal]);
 
   // Tab/window monitoring
   useEffect(() => {
