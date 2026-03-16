@@ -65,7 +65,6 @@ const emptyTestForm = {
   type: "LISTENING" as string,
   description: "",
   duration: "",
-  examDate: "",
 };
 
 const emptyQuestionForm = {
@@ -78,6 +77,13 @@ const emptyQuestionForm = {
   noteTemplate: "",
   noteAnswers: {} as Record<string, string>,
   imageUrl: "",
+  section: "1",
+};
+
+const emptyPassageForm = {
+  title: "",
+  text: "",
+  section: "1",
 };
 
 const emptyWritingTaskForm = {
@@ -110,6 +116,14 @@ export default function AdminTestsPage() {
   const [questionForm, setQuestionForm] = useState(emptyQuestionForm);
   const [questionSubmitting, setQuestionSubmitting] = useState(false);
   const [questionFormError, setQuestionFormError] = useState("");
+
+  // Reading passage modal
+  const [showPassageModal, setShowPassageModal] = useState(false);
+  const [passageForm, setPassageForm] = useState(emptyPassageForm);
+  const [passageSubmitting, setPassageSubmitting] = useState(false);
+
+  // Active section for adding questions
+  const [activeSection, setActiveSection] = useState(1);
 
   // Writing task modal
   const [showWritingTaskModal, setShowWritingTaskModal] = useState(false);
@@ -166,7 +180,6 @@ export default function AdminTestsPage() {
       type: test.type,
       description: test.description || "",
       duration: test.duration?.toString() || "",
-      examDate: (test as any).examDate ? new Date((test as any).examDate).toISOString().split("T")[0] : "",
     });
     setTestFormError("");
     setShowTestModal(true);
@@ -182,7 +195,6 @@ export default function AdminTestsPage() {
       type: testForm.type,
       description: testForm.description || null,
       duration: testForm.duration ? parseInt(testForm.duration) : null,
-      examDate: testForm.examDate || null,
     };
 
     try {
@@ -253,7 +265,7 @@ export default function AdminTestsPage() {
 
   const openCreateQuestionModal = () => {
     setEditingQuestion(null);
-    setQuestionForm(emptyQuestionForm);
+    setQuestionForm({ ...emptyQuestionForm, section: String(activeSection) });
     setQuestionFormError("");
     setShowQuestionModal(true);
   };
@@ -288,6 +300,7 @@ export default function AdminTestsPage() {
       noteTemplate: noteTemplate,
       noteAnswers: noteAnswers,
       imageUrl: q.imageUrl || "",
+      section: ((q as any).section || 1).toString(),
     });
     setQuestionFormError("");
     setShowQuestionModal(true);
@@ -350,6 +363,7 @@ export default function AdminTestsPage() {
       options,
       correctAnswer,
       imageUrl: questionForm.imageUrl || null,
+      section: parseInt(questionForm.section) || 1,
       points: parseInt(questionForm.points) || 1,
       order: editingQuestion
         ? editingQuestion.order
@@ -482,6 +496,64 @@ export default function AdminTestsPage() {
     } catch (err: any) {
       setError(err.message);
     }
+  };
+
+  // ── Reading Passage ──
+
+  const handlePassageSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTest || !passageForm.title.trim() || !passageForm.text.trim()) return;
+    setPassageSubmitting(true);
+
+    const sectionNum = parseInt(passageForm.section) || 1;
+
+    try {
+      // Create a placeholder question that holds passage text
+      const res = await fetch("/api/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          testId: selectedTest.id,
+          questionText: `Passage ${sectionNum} placeholder`,
+          questionType: "FILL_BLANK",
+          correctAnswer: "_",
+          section: sectionNum,
+          passageTitle: passageForm.title,
+          passageText: passageForm.text,
+          order: 0,
+          points: 0,
+        }),
+      });
+      if (!res.ok) throw new Error("Passage elave edilemedi");
+
+      setShowPassageModal(false);
+      setPassageForm(emptyPassageForm);
+      await fetchTestDetail(selectedTest.id);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setPassageSubmitting(false);
+    }
+  };
+
+  const getPassages = () => {
+    if (!selectedTest?.questions) return [];
+    const sections = new Map<number, { title: string; text: string; questions: Question[] }>();
+
+    for (const q of selectedTest.questions) {
+      const sec = (q as any).section || 1;
+      if (!sections.has(sec)) {
+        sections.set(sec, { title: "", text: "", questions: [] });
+      }
+      const s = sections.get(sec)!;
+      if ((q as any).passageTitle) s.title = (q as any).passageTitle;
+      if ((q as any).passageText) s.text = (q as any).passageText;
+      s.questions.push(q);
+    }
+
+    return Array.from(sections.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([num, data]) => ({ num, ...data }));
   };
 
   // ── Audio Upload ──
@@ -1017,8 +1089,94 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                     </div>
                   )}
 
-                  {/* Questions section (for LISTENING and READING) */}
-                  {(selectedTest.type === "LISTENING" || selectedTest.type === "READING") && (
+                  {/* Reading Passages section */}
+                  {selectedTest.type === "READING" && (
+                    <div>
+                      <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-foreground">Reading Passage-lar</h3>
+                        <button
+                          onClick={() => {
+                            const passages = getPassages();
+                            setPassageForm({ ...emptyPassageForm, section: String(passages.length + 1) });
+                            setShowPassageModal(true);
+                          }}
+                          className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground hover:bg-muted"
+                        >
+                          + Passage
+                        </button>
+                      </div>
+
+                      {getPassages().length === 0 ? (
+                        <div className="py-4 text-center text-sm text-muted-foreground">
+                          Hele passage elave olunmayib. "+ Passage" basib reading metni elave edin.
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {getPassages().map((passage) => (
+                            <div key={passage.num} className="rounded-md border border-border">
+                              <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2">
+                                <div>
+                                  <span className="text-xs font-bold text-primary">PASSAGE {passage.num}</span>
+                                  {passage.title && <span className="ml-2 text-sm font-medium text-foreground">{passage.title}</span>}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setActiveSection(passage.num);
+                                    setQuestionForm({ ...emptyQuestionForm, section: String(passage.num) });
+                                    openCreateQuestionModal();
+                                  }}
+                                  className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
+                                >
+                                  + Sual
+                                </button>
+                              </div>
+                              {passage.text && (
+                                <div className="max-h-32 overflow-y-auto border-b border-border bg-muted/10 px-4 py-2 text-xs text-muted-foreground">
+                                  {passage.text.slice(0, 200)}...
+                                </div>
+                              )}
+                              <div className="p-3">
+                                {passage.questions
+                                  .filter((q) => q.points > 0)
+                                  .sort((a, b) => a.order - b.order)
+                                  .map((q, idx) => (
+                                    <div key={q.id} className="flex items-center justify-between border-b border-border py-1.5 last:border-0">
+                                      <div className="flex-1">
+                                        <span className="mr-2 text-xs font-bold text-muted-foreground">{q.order}.</span>
+                                        <span className="text-xs text-foreground">{q.questionText.slice(0, 80)}</span>
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                          {QUESTION_TYPE_LABELS[q.questionType] || q.questionType}
+                                        </span>
+                                        <button
+                                          onClick={() => openEditQuestionModal(q)}
+                                          className="text-[10px] text-primary hover:underline"
+                                        >
+                                          Redakte
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteQuestion(q.id)}
+                                          className="text-[10px] text-destructive hover:underline"
+                                        >
+                                          Sil
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                {passage.questions.filter((q) => q.points > 0).length === 0 && (
+                                  <p className="py-2 text-center text-xs text-muted-foreground">Sual yoxdur</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Questions section (for LISTENING) */}
+                  {selectedTest.type === "LISTENING" && (
                     <div>
                       <div className="mb-3 flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-foreground">
@@ -1158,20 +1316,6 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                   value={testForm.duration}
                   onChange={(e) =>
                     setTestForm({ ...testForm, duration: e.target.value })
-                  }
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">
-                  Imtahan Tarixi
-                </label>
-                <input
-                  type="date"
-                  value={testForm.examDate}
-                  onChange={(e) =>
-                    setTestForm({ ...testForm, examDate: e.target.value })
                   }
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
@@ -1469,6 +1613,50 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                   className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   {writingTaskSubmitting ? "Gözləyin..." : editingWritingTask ? "Yenilə" : "Yarat"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reading Passage Modal */}
+      {showPassageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-2xl rounded-lg border border-border bg-card p-6 shadow-lg">
+            <h2 className="mb-4 text-lg font-semibold text-foreground">
+              Reading Passage {passageForm.section} Elave Et
+            </h2>
+            <form onSubmit={handlePassageSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">Passage Basligi</label>
+                <input
+                  type="text" required
+                  value={passageForm.title}
+                  onChange={(e) => setPassageForm({ ...passageForm, title: e.target.value })}
+                  placeholder="Mes: Why we need to protect polar bears"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">Passage Metni</label>
+                <textarea
+                  required
+                  value={passageForm.text}
+                  onChange={(e) => setPassageForm({ ...passageForm, text: e.target.value })}
+                  rows={12}
+                  placeholder="Reading passage metnini bura yapishdir..."
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setShowPassageModal(false)}
+                  className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
+                  Legv et
+                </button>
+                <button type="submit" disabled={passageSubmitting}
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                  {passageSubmitting ? "Elave edilir..." : "Elave Et"}
                 </button>
               </div>
             </form>

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { testId, questionText, questionType, options, correctAnswer, order, points } = body;
+  const { testId, questionText, questionType, options, correctAnswer, order, points, section, imageUrl, passageText, passageTitle } = body;
 
   if (!testId || !questionText || !questionType || !correctAnswer) {
     return NextResponse.json(
@@ -57,6 +57,10 @@ export async function POST(req: NextRequest) {
       questionType,
       options: options || null,
       correctAnswer,
+      imageUrl: imageUrl || null,
+      section: section ?? 1,
+      passageText: passageText || null,
+      passageTitle: passageTitle || null,
       order: order ?? 0,
       points: points ?? 1,
     },
