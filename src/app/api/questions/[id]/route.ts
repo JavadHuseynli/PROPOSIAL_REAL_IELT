@@ -61,7 +61,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Question not found" }, { status: 404 });
   }
 
-  await prisma.question.delete({ where: { id } });
-
-  return NextResponse.json({ message: "Question deleted" });
+  try {
+    await prisma.answer.deleteMany({ where: { questionId: id } });
+    await prisma.question.delete({ where: { id } });
+    return NextResponse.json({ message: "Question deleted" });
+  } catch (err: any) {
+    return NextResponse.json({ error: "Silme ugursuz oldu: " + (err.message || "").slice(0, 100) }, { status: 500 });
+  }
 }
