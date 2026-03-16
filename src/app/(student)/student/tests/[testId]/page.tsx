@@ -366,29 +366,48 @@ export default function TestTakingPage() {
                   if (!parts.has(sec)) parts.set(sec, []);
                   parts.get(sec)!.push(q);
                 }
-                return Array.from(parts.entries()).sort((a, b) => a[0] - b[0]).map(([partNum, partQs]) => (
-                  <div key={partNum} className="mb-2">
-                    <p className="mb-1 text-[10px] font-bold text-purple-600">Part {partNum}</p>
-                    <div className="grid grid-cols-5 gap-1">
-                      {partQs.map((q) => (
-                        <button
-                          key={q.id}
-                          onClick={() => {
-                            const el = document.getElementById(`q-${q.id}`);
-                            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                          }}
-                          className={`flex h-7 w-7 items-center justify-center rounded text-[10px] font-medium transition-colors ${
-                            answers[q.id]
-                              ? "bg-green-100 text-green-700"
-                              : "bg-muted text-muted-foreground hover:bg-accent"
-                          }`}
-                        >
-                          {q.order}
-                        </button>
-                      ))}
+                return Array.from(parts.entries()).sort((a, b) => a[0] - b[0]).map(([partNum, partQs]) => {
+                  // Expand NOTE_COMPLETION into individual blank numbers
+                  const items: { id: string; num: number; answered: boolean }[] = [];
+                  for (const q of partQs) {
+                    if (q.questionType === "NOTE_COMPLETION") {
+                      const blanks = q.questionText.match(/\{\{(\d+)\}\}/g) || [];
+                      let userAnswers: Record<string, string> = {};
+                      try { userAnswers = answers[q.id] ? JSON.parse(answers[q.id]) : {}; } catch {}
+                      for (const b of blanks) {
+                        const num = parseInt(b.replace(/[{}]/g, ""));
+                        items.push({ id: q.id, num, answered: !!userAnswers[String(num)]?.trim() });
+                      }
+                    } else {
+                      items.push({ id: q.id, num: q.order, answered: !!answers[q.id] });
+                    }
+                  }
+                  items.sort((a, b) => a.num - b.num);
+
+                  return (
+                    <div key={partNum} className="mb-2">
+                      <p className="mb-1 text-[10px] font-bold text-purple-600">Part {partNum}</p>
+                      <div className="grid grid-cols-5 gap-1">
+                        {items.map((item, idx) => (
+                          <button
+                            key={`${item.id}-${item.num}-${idx}`}
+                            onClick={() => {
+                              const el = document.getElementById(`q-${item.id}`);
+                              if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }}
+                            className={`flex h-7 w-7 items-center justify-center rounded text-[10px] font-medium transition-colors ${
+                              item.answered
+                                ? "bg-green-100 text-green-700"
+                                : "bg-muted text-muted-foreground hover:bg-accent"
+                            }`}
+                          >
+                            {item.num}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ));
+                  );
+                });
               })()}
             </div>
           )}
