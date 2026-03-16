@@ -901,9 +901,9 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        {/* Tests table */}
-        <div className={selectedTest ? "xl:col-span-1" : "xl:col-span-3"}>
+      <div className="space-y-6">
+        {/* Tests table - always full width on top */}
+        <div>
           <div className="overflow-hidden rounded-lg border border-border bg-card">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border bg-muted/50">
@@ -982,7 +982,7 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
 
         {/* Test detail panel */}
         {selectedTest && (
-          <div className="xl:col-span-2">
+          <div>
             <div className="rounded-lg border border-border bg-card p-5">
               <div className="mb-4 flex items-center justify-between">
                 <div>
