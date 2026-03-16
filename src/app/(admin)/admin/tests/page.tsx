@@ -302,6 +302,7 @@ export default function AdminTestsPage() {
       noteAnswers: noteAnswers,
       imageUrl: q.imageUrl || "",
       section: ((q as any).section || 1).toString(),
+      maxSelections: (q.options as any)?.maxSelections?.toString() || "1",
     });
     setQuestionFormError("");
     setShowQuestionModal(true);
