@@ -500,21 +500,25 @@ export default function AdminTestsPage() {
 
   // ── Reading Passage ──
 
+  const [passageError, setPassageError] = useState("");
+
   const handlePassageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTest || !passageForm.title.trim() || !passageForm.text.trim()) return;
+    setPassageError("");
+    if (!selectedTest) { setPassageError("Evvelce test secin"); return; }
+    if (!passageForm.title.trim()) { setPassageError("Bashliq yazin"); return; }
+    if (!passageForm.text.trim()) { setPassageError("Metn yazin"); return; }
     setPassageSubmitting(true);
 
     const sectionNum = parseInt(passageForm.section) || 1;
 
     try {
-      // Create a placeholder question that holds passage text
       const res = await fetch("/api/questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           testId: selectedTest.id,
-          questionText: `Passage ${sectionNum} placeholder`,
+          questionText: `Reading Passage ${sectionNum}`,
           questionType: "FILL_BLANK",
           correctAnswer: "_",
           section: sectionNum,
@@ -524,12 +528,16 @@ export default function AdminTestsPage() {
           points: 0,
         }),
       });
-      if (!res.ok) throw new Error("Passage elave edilemedi");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Passage elave edilemedi");
+      }
 
       setShowPassageModal(false);
       setPassageForm(emptyPassageForm);
       await fetchTestDetail(selectedTest.id);
     } catch (err: any) {
+      setPassageError(err.message);
       alert(err.message);
     } finally {
       setPassageSubmitting(false);
@@ -1627,6 +1635,9 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
             <h2 className="mb-4 text-lg font-semibold text-foreground">
               Reading Passage {passageForm.section} Elave Et
             </h2>
+            {passageError && (
+              <div className="mb-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{passageError}</div>
+            )}
             <form onSubmit={handlePassageSubmit} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-foreground">Passage Basligi</label>
