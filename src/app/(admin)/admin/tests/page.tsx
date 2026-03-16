@@ -507,7 +507,7 @@ export default function AdminTestsPage() {
     setPassageError("");
     if (!selectedTest) { setPassageError("Evvelce test secin"); return; }
     if (!passageForm.title.trim()) { setPassageError("Bashliq yazin"); return; }
-    if (!passageForm.text.trim()) { setPassageError("Metn yazin"); return; }
+    if (selectedTest.type === "READING" && !passageForm.text.trim()) { setPassageError("Metn yazin"); return; }
     setPassageSubmitting(true);
 
     const sectionNum = parseInt(passageForm.section) || 1;
@@ -1227,74 +1227,147 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                     </div>
                   )}
 
-                  {/* Questions section (for LISTENING) */}
+                  {/* Listening Parts section */}
                   {selectedTest.type === "LISTENING" && (
                     <div>
                       <div className="mb-3 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-foreground">
-                          Suallar ({selectedTest.questions?.length || 0})
-                        </h3>
-                        <button
-                          onClick={openCreateQuestionModal}
-                          className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground hover:bg-muted"
-                        >
-                          + Sual
-                        </button>
+                        <h3 className="text-sm font-semibold text-foreground">Listening Part-lar</h3>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const parts = getPassages();
+                              setPassageForm({ title: "", text: "", section: String(parts.length + 1) });
+                              setPassageError("");
+                              setShowPassageModal(true);
+                            }}
+                            className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground hover:bg-muted"
+                          >
+                            + Part
+                          </button>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        {(selectedTest.questions || [])
-                          .sort((a, b) => a.order - b.order)
-                          .map((q, idx) => (
-                            <div
-                              key={q.id}
-                              className="rounded-md border border-border bg-muted/30 p-3"
-                            >
-                              <div className="mb-1 flex items-start justify-between">
-                                <div className="flex-1">
-                                  <span className="mr-2 text-xs font-bold text-muted-foreground">
-                                    {idx + 1}.
-                                  </span>
-                                  <span className="text-sm text-foreground">
-                                    {q.questionText}
-                                  </span>
-                                  {q.imageUrl && (
-                                    <img src={q.imageUrl} alt="" className="mt-2 max-h-24 rounded border border-border" />
-                                  )}
-                                </div>
-                                <div className="ml-2 flex gap-1">
-                                  <button
-                                    onClick={() => openEditQuestionModal(q)}
-                                    className="rounded-md border border-border px-2 py-0.5 text-xs text-foreground hover:bg-muted"
-                                  >
-                                    Redaktə
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteQuestion(q.id)}
-                                    className="rounded-md border border-destructive px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
-                                  >
-                                    Sil
-                                  </button>
-                                </div>
-                              </div>
-                              <div className="mt-1 flex gap-2">
-                                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                                  {QUESTION_TYPE_LABELS[q.questionType] || q.questionType}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  Cavab: {q.correctAnswer}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {q.points} bal
-                                </span>
-                              </div>
+
+                      {/* Audio files */}
+                      {(selectedTest.audioFiles || []).length > 0 && (
+                        <div className="mb-3 rounded-md border border-border bg-muted/20 p-3">
+                          <p className="mb-2 text-xs font-semibold text-muted-foreground">Audio fayllar</p>
+                          {(selectedTest.audioFiles || []).map((a) => (
+                            <div key={a.id} className="mb-1 text-xs text-foreground">
+                              Section {a.section}: <a href={a.filePath} className="text-primary hover:underline">{a.filePath}</a>
                             </div>
                           ))}
-                        {(selectedTest.questions || []).length === 0 && (
-                          <div className="py-4 text-center text-sm text-muted-foreground">
-                            Hələ sual yoxdur
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
+
+                      {getPassages().length === 0 ? (
+                        <div className="py-4 text-center text-sm text-muted-foreground">
+                          Hele part elave olunmayib. "+ Part" basib listening hissesi elave edin.
+                          <br />
+                          <span className="text-xs">Her Part ucun: bashliq (mes: Part 1 - Children&apos;s Engineering), audio fayl ve suallar elave edin.</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {getPassages().map((part) => {
+                            const audio = (selectedTest.audioFiles || []).find((a) => a.section === part.num);
+                            return (
+                              <div key={part.num} className="rounded-md border border-border">
+                                <div className="flex items-center justify-between border-b border-border bg-purple-50 px-4 py-2">
+                                  <div>
+                                    <span className="text-xs font-bold text-purple-700">PART {part.num}</span>
+                                    {part.title && <span className="ml-2 text-sm font-medium text-foreground">{part.title}</span>}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setPassageForm({ title: part.title, text: part.text, section: String(part.num) });
+                                        setPassageError("");
+                                        setShowPassageModal(true);
+                                      }}
+                                      className="text-xs text-primary hover:underline"
+                                    >
+                                      Redakte
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        if (!confirm(`Part ${part.num} ve butun suallari silinecek. Eminsiniz?`)) return;
+                                        for (const q of part.questions) {
+                                          await fetch(`/api/questions/${q.id}`, { method: "DELETE" });
+                                        }
+                                        if (selectedTest) await fetchTestDetail(selectedTest.id);
+                                      }}
+                                      className="text-xs text-destructive hover:underline"
+                                    >
+                                      Sil
+                                    </button>
+                                    <label className="cursor-pointer rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 hover:bg-purple-200">
+                                      Audio yukle
+                                      <input type="file" accept="audio/*" className="hidden" onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file || !selectedTest) return;
+                                        const fd = new FormData();
+                                        fd.append("file", file);
+                                        fd.append("testId", selectedTest.id);
+                                        fd.append("section", String(part.num));
+                                        fd.append("order", String(part.num));
+                                        await fetch("/api/upload", { method: "POST", body: fd });
+                                        await fetchTestDetail(selectedTest.id);
+                                      }} />
+                                    </label>
+                                    <button
+                                      onClick={() => {
+                                        setActiveSection(part.num);
+                                        setQuestionForm({ ...emptyQuestionForm, section: String(part.num) });
+                                        openCreateQuestionModal();
+                                      }}
+                                      className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20"
+                                    >
+                                      + Sual
+                                    </button>
+                                  </div>
+                                </div>
+                                {/* Audio player */}
+                                {audio && (
+                                  <div className="border-b border-border bg-purple-50/30 px-4 py-2">
+                                    <audio controls className="h-8 w-full" preload="none">
+                                      <source src={audio.filePath} type="audio/mpeg" />
+                                    </audio>
+                                  </div>
+                                )}
+                                {/* Part description */}
+                                {part.text && (
+                                  <div className="max-h-20 overflow-y-auto border-b border-border bg-muted/10 px-4 py-2 text-xs text-muted-foreground">
+                                    {part.text.slice(0, 200)}...
+                                  </div>
+                                )}
+                                {/* Questions */}
+                                <div className="p-3">
+                                  {part.questions
+                                    .filter((q) => q.points > 0)
+                                    .sort((a, b) => a.order - b.order)
+                                    .map((q) => (
+                                      <div key={q.id} className="flex items-center justify-between border-b border-border py-1.5 last:border-0">
+                                        <div className="flex-1">
+                                          <span className="mr-2 text-xs font-bold text-muted-foreground">{q.order}.</span>
+                                          <span className="text-xs text-foreground">{q.questionText.slice(0, 80)}</span>
+                                        </div>
+                                        <div className="flex gap-1">
+                                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                            {QUESTION_TYPE_LABELS[q.questionType] || q.questionType}
+                                          </span>
+                                          <button onClick={() => openEditQuestionModal(q)} className="text-[10px] text-primary hover:underline">Redakte</button>
+                                          <button onClick={() => handleDeleteQuestion(q.id)} className="text-[10px] text-destructive hover:underline">Sil</button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  {part.questions.filter((q) => q.points > 0).length === 0 && (
+                                    <p className="py-2 text-center text-xs text-muted-foreground">Sual yoxdur</p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
@@ -1677,7 +1750,7 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-2xl rounded-lg border border-border bg-card p-6 shadow-lg">
             <h2 className="mb-4 text-lg font-semibold text-foreground">
-              Reading Passage {passageForm.section} Elave Et
+              {selectedTest?.type === "LISTENING" ? `Listening Part ${passageForm.section}` : `Reading Passage ${passageForm.section}`} Elave Et
             </h2>
             {passageError && (
               <div className="mb-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{passageError}</div>
@@ -1694,13 +1767,15 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Passage Metni</label>
+                <label className="mb-1 block text-sm font-medium text-foreground">
+                  {selectedTest?.type === "LISTENING" ? "Tesvir (istege bagli)" : "Passage Metni"}
+                </label>
                 <textarea
-                  required
+                  required={selectedTest?.type !== "LISTENING"}
                   value={passageForm.text}
                   onChange={(e) => setPassageForm({ ...passageForm, text: e.target.value })}
-                  rows={12}
-                  placeholder="Reading passage metnini bura yapishdir..."
+                  rows={selectedTest?.type === "LISTENING" ? 4 : 12}
+                  placeholder={selectedTest?.type === "LISTENING" ? "Part tesviri (istege bagli)..." : "Reading passage metnini bura yapishdir..."}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
