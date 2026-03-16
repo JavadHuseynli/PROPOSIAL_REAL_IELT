@@ -404,45 +404,60 @@ export default function TestTakingPage() {
           </p>
         </div>
 
-        {/* LISTENING: Audio Player + Questions */}
-        {test.type === "LISTENING" && (
-          <div className="space-y-6">
-            {test.audioFiles.length > 0 && (
-              <div className="rounded-lg border border-border bg-card p-4">
-                <h3 className="mb-3 text-sm font-medium text-foreground">
-                  Audio
-                </h3>
-                {test.audioFiles.map((audio) => (
-                  <div key={audio.id} className="mb-3">
-                    <p className="mb-1 text-xs text-muted-foreground">
-                      Section {audio.section}
-                    </p>
-                    <audio controls className="w-full" preload="auto">
-                      <source
-                        src={`/uploads/${audio.filePath}`}
-                        type="audio/mpeg"
-                      />
-                      Brauzeriniz audio elementi dəstəkləmir.
-                    </audio>
+        {/* LISTENING: Parts with Audio + Questions */}
+        {test.type === "LISTENING" && (() => {
+          const sections = new Map<number, Question[]>();
+          for (const q of questions) {
+            const sec = q.section || 1;
+            if (!sections.has(sec)) sections.set(sec, []);
+            sections.get(sec)!.push(q);
+          }
+          const sortedParts = Array.from(sections.entries()).sort((a, b) => a[0] - b[0]);
+
+          return (
+            <div className="space-y-6">
+              {sortedParts.map(([partNum, partQuestions]) => {
+                const audio = test.audioFiles.find((a) => a.section === partNum);
+                const partTitle = partQuestions[0]?.passageTitle;
+                const realQuestions = partQuestions.filter((q) => q.points > 0);
+
+                return (
+                  <div key={partNum} className="rounded-lg border border-border bg-card overflow-hidden">
+                    <div className="border-b border-border bg-purple-50 px-5 py-3">
+                      <h3 className="text-sm font-bold text-purple-700">
+                        PART {partNum}
+                        {partTitle && <span className="ml-2 font-medium text-foreground">{partTitle}</span>}
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          Questions {realQuestions[0]?.order}-{realQuestions[realQuestions.length - 1]?.order}
+                        </span>
+                      </h3>
+                    </div>
+
+                    {audio && (
+                      <div className="border-b border-border bg-purple-50/30 px-5 py-3">
+                        <audio controls className="w-full" preload="metadata">
+                          <source src={audio.filePath.startsWith("/") ? audio.filePath : `/uploads/${audio.filePath}`} type="audio/mpeg" />
+                        </audio>
+                      </div>
+                    )}
+
+                    <div className="space-y-4 p-5">
+                      {realQuestions.map((q) => (
+                        <QuestionRenderer
+                          key={q.id}
+                          question={q}
+                          index={q.order - 1}
+                          answer={answers[q.id] || ""}
+                          onAnswer={setAnswer}
+                        />
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-            {questions.length > 0 && (
-              <QuestionRenderer
-                question={questions[currentQuestion]}
-                index={currentQuestion}
-                answer={answers[questions[currentQuestion].id] || ""}
-                onAnswer={setAnswer}
-              />
-            )}
-            <QuestionNavButtons
-              current={currentQuestion}
-              total={questions.length}
-              onChange={setCurrentQuestion}
-            />
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* READING: All passages with their questions */}
         {test.type === "READING" && (() => {
