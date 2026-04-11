@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { countWords } from "@/lib/utils";
+import { ProctorGuard } from "@/components/test/ProctorGuard";
 
 interface Question {
   id: string;
@@ -102,11 +103,21 @@ export default function TestTakingPage() {
       try {
         const res = await fetch("/api/exam-schedules/active");
         if (!res.ok) return;
-        const schedule = await res.json();
-        if (schedule?.examDate && schedule?.endTime) {
-          const dateStr = new Date(schedule.examDate).toISOString().split("T")[0];
-          const deadline = new Date(`${dateStr}T${schedule.endTime}:00`);
-          setExamDeadline(deadline);
+        const data = await res.json();
+        if (!data) return;
+        // API returns array — find the active schedule
+        const schedules = Array.isArray(data) ? data : [data];
+        const now = new Date();
+        for (const s of schedules) {
+          if (!s.examDate || !s.endTime) continue;
+          const dateStr = new Date(s.examDate).toISOString().split("T")[0];
+          const start = new Date(`${dateStr}T${s.startTime}:00`);
+          const end = new Date(`${dateStr}T${s.endTime}:00`);
+          if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
+          if (now >= start && now <= end) {
+            setExamDeadline(end);
+            return;
+          }
         }
       } catch {}
     }
@@ -319,6 +330,7 @@ export default function TestTakingPage() {
 
   return (
     <div className="flex gap-6">
+      {attempt && <ProctorGuard attemptId={attempt.id} enabled={true} />}
       {/* Sidebar - Question Navigation */}
       <div className="w-48 shrink-0">
         <div className="sticky top-6 space-y-4">
@@ -372,11 +384,16 @@ export default function TestTakingPage() {
                   for (const q of partQs) {
                     if (q.questionType === "NOTE_COMPLETION") {
                       const blanks = q.questionText.match(/\{\{(\d+)\}\}/g) || [];
-                      let userAnswers: Record<string, string> = {};
-                      try { userAnswers = answers[q.id] ? JSON.parse(answers[q.id]) : {}; } catch {}
-                      for (const b of blanks) {
-                        const num = parseInt(b.replace(/[{}]/g, ""));
-                        items.push({ id: q.id, num, answered: !!userAnswers[String(num)]?.trim() });
+                      if (blanks.length > 0) {
+                        let userAnswers: Record<string, string> = {};
+                        try { userAnswers = answers[q.id] ? JSON.parse(answers[q.id]) : {}; } catch {}
+                        for (const b of blanks) {
+                          const num = parseInt(b.replace(/[{}]/g, ""));
+                          items.push({ id: q.id, num, answered: !!userAnswers[String(num)]?.trim() });
+                        }
+                      } else {
+                        // Fallback: no {{number}} blanks found, show by order
+                        items.push({ id: q.id, num: q.order, answered: !!answers[q.id] });
                       }
                     } else {
                       items.push({ id: q.id, num: q.order, answered: !!answers[q.id] });
@@ -475,15 +492,33 @@ export default function TestTakingPage() {
                     )}
 
                     <div className="space-y-4 p-5">
-                      {realQuestions.map((q) => (
-                        <QuestionRenderer
-                          key={q.id}
-                          question={q}
-                          index={q.order - 1}
-                          answer={answers[q.id] || ""}
-                          onAnswer={setAnswer}
-                        />
-                      ))}
+                      {(() => {
+                        // Group questions: show image once before the group of questions that share it
+                        const shownImages = new Set<string>();
+                        return realQuestions.map((q) => {
+                          const showImage = q.imageUrl && !shownImages.has(q.imageUrl);
+                          if (q.imageUrl) shownImages.add(q.imageUrl);
+                          return (
+                            <div key={q.id}>
+                              {showImage && (
+                                <div className="mb-4 rounded-lg border border-border bg-white p-4">
+                                  <img
+                                    src={q.imageUrl!}
+                                    alt={`Sual ${q.order} şəkli`}
+                                    className="mx-auto max-h-[400px] rounded-md"
+                                  />
+                                </div>
+                              )}
+                              <QuestionRenderer
+                                question={{...q, imageUrl: null}}
+                                index={q.order - 1}
+                                answer={answers[q.id] || ""}
+                                onAnswer={setAnswer}
+                              />
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                 );
@@ -770,6 +805,21 @@ function NoteCompletionRenderer({
   answer: string;
   onAnswer: (value: string) => void;
 }) {
+  // If template has no {{N}} blank markers, render a single plain text input.
+  // This covers single-blank note-completion questions (e.g. "... and _______ .").
+  const hasBlanks = /\{\{\d+\}\}/.test(template);
+  if (!hasBlanks) {
+    return (
+      <input
+        type="text"
+        value={answer}
+        onChange={(e) => onAnswer(e.target.value)}
+        placeholder="Cavabınızı yazın..."
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+    );
+  }
+
   let blankAnswers: Record<string, string> = {};
   try {
     blankAnswers = answer ? JSON.parse(answer) : {};

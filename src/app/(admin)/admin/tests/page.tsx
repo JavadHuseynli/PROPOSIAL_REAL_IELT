@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TEST_TYPE_LABELS, QUESTION_TYPE_LABELS } from "@/lib/constants";
+import { supabase } from "@/lib/supabase";
 
 interface Question {
   id: string;
@@ -13,6 +14,7 @@ interface Question {
   imageUrl: string | null;
   order: number;
   points: number;
+  section: number;
 }
 
 interface AudioFile {
@@ -135,6 +137,14 @@ export default function AdminTestsPage() {
 
   // Audio upload
   const [audioUploading, setAudioUploading] = useState(false);
+
+  // Section image modal
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [imageModalQuestions, setImageModalQuestions] = useState<Question[]>([]);
+  const [imageModalSelected, setImageModalSelected] = useState<Set<string>>(new Set());
+  const [imageModalFile, setImageModalFile] = useState<File | null>(null);
+  const [imageModalPreview, setImageModalPreview] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
 
   const fetchTests = async () => {
     try {
@@ -709,7 +719,7 @@ export default function AdminTestsPage() {
             <option value="">Seçin</option>
             <option value="TRUE">TRUE</option>
             <option value="FALSE">FALSE</option>
-            <option value="NOT_GIVEN">NOT GIVEN</option>
+            <option value="NOT GIVEN">NOT GIVEN</option>
           </select>
         </div>
       );
@@ -731,7 +741,7 @@ export default function AdminTestsPage() {
             <option value="">Seçin</option>
             <option value="YES">YES</option>
             <option value="NO">NO</option>
-            <option value="NOT_GIVEN">NOT GIVEN</option>
+            <option value="NOT GIVEN">NOT GIVEN</option>
           </select>
         </div>
       );
@@ -1258,17 +1268,31 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                                         if (audio) {
                                           await fetch(`/api/audio/${audio.id}`, { method: "DELETE" });
                                         }
-                                        const fd = new FormData();
-                                        fd.append("file", file);
-                                        fd.append("testId", selectedTest.id);
-                                        fd.append("section", String(part.num));
-                                        fd.append("order", String(part.num));
-                                        const res = await fetch("/api/upload", { method: "POST", body: fd });
+                                        // Upload to Supabase Storage (bypasses Vercel 4.5MB limit)
+                                        const fileName = `audio/${selectedTest.id}-part${part.num}-${Date.now()}.mp3`;
+                                        const { error: uploadError } = await supabase.storage
+                                          .from("uploads")
+                                          .upload(fileName, file, { contentType: file.type, upsert: true });
+                                        if (uploadError) {
+                                          alert("Audio yuklenme xetasi: " + uploadError.message);
+                                          return;
+                                        }
+                                        const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(fileName);
+                                        // Save audio record via API
+                                        const res = await fetch("/api/audio-record", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({
+                                            testId: selectedTest.id,
+                                            filePath: urlData.publicUrl,
+                                            section: part.num,
+                                            order: part.num,
+                                          }),
+                                        });
                                         if (res.ok) {
                                           await fetchTestDetail(selectedTest.id);
                                         } else {
-                                          const err = await res.json().catch(() => ({ error: "Bilinmeyen xeta" }));
-                                          alert("Audio yuklenme xetasi: " + (err.error || res.statusText));
+                                          alert("Audio qeyd xetasi");
                                         }
                                       }} />
                                     </label>
@@ -1283,6 +1307,19 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                                         Audio sil
                                       </button>
                                     )}
+                                    <button
+                                      onClick={() => {
+                                        setImageModalQuestions(part.questions);
+                                        const alreadyHasImage = part.questions.filter((q) => q.imageUrl);
+                                        setImageModalSelected(new Set(alreadyHasImage.length > 0 ? alreadyHasImage.map((q) => q.id) : part.questions.map((q) => q.id)));
+                                        setImageModalFile(null);
+                                        setImageModalPreview(alreadyHasImage[0]?.imageUrl || null);
+                                        setShowImageModal(true);
+                                      }}
+                                      className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 hover:bg-emerald-200"
+                                    >
+                                      {part.questions.some((q) => q.imageUrl) ? "Sekil redakte" : "Sekil yukle"}
+                                    </button>
                                     <button
                                       onClick={() => {
                                         setActiveSection(part.num);
@@ -1306,7 +1343,37 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                                 )}
                                 {!audio && (
                                   <div className="border-b border-border bg-yellow-50 px-4 py-2 text-xs text-yellow-700">
-                                    Audio yuklenilmeyib. "Audio yukle" basib fayl elave edin.
+                                    Audio yuklenilmeyib. &quot;Audio yukle&quot; basib fayl elave edin.
+                                  </div>
+                                )}
+                                {/* Section image (map, diagram etc.) */}
+                                {part.questions.some((q) => q.imageUrl) && (
+                                  <div className="border-b border-border bg-emerald-50/50 px-4 py-3">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <p className="text-[10px] text-emerald-600">Bolme sekli (xerite, diaqram ve s.)</p>
+                                      <button
+                                        onClick={async () => {
+                                          if (!confirm("Bu bolmenin seklini silmek isteyirsiniz?")) return;
+                                          const imgQuestions = part.questions.filter((q) => q.imageUrl);
+                                          for (const q of imgQuestions) {
+                                            await fetch(`/api/questions/${q.id}`, {
+                                              method: "PUT",
+                                              headers: { "Content-Type": "application/json" },
+                                              body: JSON.stringify({ imageUrl: null }),
+                                            });
+                                          }
+                                          fetchTests();
+                                        }}
+                                        className="text-[10px] text-destructive hover:underline"
+                                      >
+                                        Sekli sil
+                                      </button>
+                                    </div>
+                                    <img
+                                      src={part.questions.find((q) => q.imageUrl)?.imageUrl || ""}
+                                      alt={`Part ${part.num} sekli`}
+                                      className="max-h-48 rounded border border-emerald-200"
+                                    />
                                   </div>
                                 )}
                                 {/* Part description */}
@@ -1766,6 +1833,148 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Image assignment modal */}
+      {showImageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-bold text-foreground">Bolme Sekli</h3>
+
+            {/* Image preview / upload */}
+            <div className="mb-4">
+              {imageModalPreview ? (
+                <div className="relative">
+                  <img src={imageModalPreview} alt="Preview" className="max-h-48 w-full rounded-md border border-border object-contain" />
+                  <button
+                    onClick={() => { setImageModalPreview(null); setImageModalFile(null); }}
+                    className="absolute right-2 top-2 rounded bg-red-500 px-2 py-0.5 text-xs text-white hover:bg-red-600"
+                  >
+                    Sil
+                  </button>
+                </div>
+              ) : (
+                <label className="flex h-32 cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/30 hover:bg-muted/50">
+                  <span className="text-sm text-muted-foreground">Sekil sec (xerite, diaqram ve s.)</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setImageModalFile(file);
+                    const reader = new FileReader();
+                    reader.onload = () => setImageModalPreview(reader.result as string);
+                    reader.readAsDataURL(file);
+                  }} />
+                </label>
+              )}
+            </div>
+
+            {/* Question selection */}
+            <div className="mb-4">
+              <p className="mb-2 text-sm font-medium text-foreground">Bu sekil hansi suallara aiddir?</p>
+              <div className="flex gap-2 mb-2">
+                <button
+                  onClick={() => setImageModalSelected(new Set(imageModalQuestions.map((q) => q.id)))}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Hamisi
+                </button>
+                <button
+                  onClick={() => setImageModalSelected(new Set())}
+                  className="text-xs text-muted-foreground hover:underline"
+                >
+                  Hec biri
+                </button>
+              </div>
+              <div className="max-h-48 space-y-1 overflow-y-auto rounded border border-border p-2">
+                {imageModalQuestions.map((q) => (
+                  <label key={q.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50">
+                    <input
+                      type="checkbox"
+                      checked={imageModalSelected.has(q.id)}
+                      onChange={(e) => {
+                        const next = new Set(imageModalSelected);
+                        if (e.target.checked) next.add(q.id);
+                        else next.delete(q.id);
+                        setImageModalSelected(next);
+                      }}
+                      className="h-4 w-4 rounded"
+                    />
+                    <span className="font-medium text-primary">{q.order}.</span>
+                    <span className="truncate text-foreground">{q.questionText.slice(0, 60)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowImageModal(false)}
+                className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
+              >
+                Legv et
+              </button>
+              <button
+                disabled={imageUploading || (!imageModalFile && !imageModalPreview)}
+                onClick={async () => {
+                  if (!selectedTest) return;
+                  setImageUploading(true);
+
+                  let imageUrl = imageModalPreview;
+
+                  // Upload new file if selected
+                  if (imageModalFile) {
+                    const fd = new FormData();
+                    fd.append("file", imageModalFile);
+                    fd.append("type", "image");
+                    const res = await fetch("/api/upload", { method: "POST", body: fd });
+                    if (res.ok) {
+                      const data = await res.json();
+                      imageUrl = data.url;
+                    } else {
+                      alert("Sekil yuklenme xetasi");
+                      setImageUploading(false);
+                      return;
+                    }
+                  }
+
+                  // Update questions: set imageUrl for selected, remove for unselected
+                  const updates = imageModalQuestions.map((q) => {
+                    const shouldHave = imageModalSelected.has(q.id);
+                    const newUrl = shouldHave ? imageUrl : null;
+                    return { id: q.id, imageUrl: newUrl };
+                  });
+
+                  // Instant local state update
+                  const updateMap = new Map(updates.map((u) => [u.id, u.imageUrl]));
+                  setSelectedTest((prev) => {
+                    if (!prev?.questions) return prev;
+                    return {
+                      ...prev,
+                      questions: prev.questions.map((q) =>
+                        updateMap.has(q.id) ? { ...q, imageUrl: updateMap.get(q.id) || null } : q
+                      ),
+                    } as Test;
+                  });
+
+                  // Persist to DB
+                  for (const u of updates) {
+                    fetch(`/api/questions/${u.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ imageUrl: u.imageUrl }),
+                    });
+                  }
+
+                  setImageUploading(false);
+                  setShowImageModal(false);
+                }}
+                className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {imageUploading ? "Yuklenilir..." : "Tetbiq et"}
+              </button>
+            </div>
           </div>
         </div>
       )}
