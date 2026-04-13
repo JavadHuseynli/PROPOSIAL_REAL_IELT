@@ -768,20 +768,36 @@ function QuestionRenderer({
       )}
 
       {/* MATCHING */}
-      {question.questionType === "MATCHING" && (
-        <select
-          value={answer}
-          onChange={(e) => onAnswer(question.id, e.target.value)}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option value="">Seçin...</option>
-          {options.map((opt, i) => (
-            <option key={i} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      )}
+      {question.questionType === "MATCHING" && (() => {
+        // Support both old format (string[]) and new format ({rightItems: [{label, value}]})
+        const rawOpts = question.options as any;
+        let matchOptions: { label: string; value: string }[] = [];
+        if (rawOpts && typeof rawOpts === "object" && !Array.isArray(rawOpts) && rawOpts.rightItems) {
+          matchOptions = rawOpts.rightItems.map((r: any) => ({
+            label: r.label || r,
+            value: r.value || r,
+          }));
+        } else if (Array.isArray(rawOpts)) {
+          matchOptions = rawOpts.map((o: string, i: number) => ({
+            label: String.fromCharCode(65 + i),
+            value: o,
+          }));
+        }
+        return (
+          <select
+            value={answer}
+            onChange={(e) => onAnswer(question.id, e.target.value)}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">Seçin...</option>
+            {matchOptions.map((opt, i) => (
+              <option key={i} value={opt.label}>
+                {opt.label}. {opt.value}
+              </option>
+            ))}
+          </select>
+        );
+      })()}
 
       {/* NOTE_COMPLETION */}
       {question.questionType === "NOTE_COMPLETION" && (
