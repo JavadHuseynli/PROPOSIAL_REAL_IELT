@@ -34,7 +34,7 @@ export default function ListeningPage() {
         if (schedule?.examDate && schedule?.startTime && schedule?.endTime) {
           const dateStr = new Date(schedule.examDate).toISOString().split("T")[0];
           const start = new Date(`${dateStr}T${schedule.startTime}:00`);
-          const end = new Date(`${dateStr}T${schedule.endTime}:00`);
+          const end = new Date(`${dateStr}T${schedule.endTime}:00`); if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
           const done = attempts.find((a: any) =>
             a.test.type === "LISTENING" &&
             (a.status === "COMPLETED" || a.status === "GRADED") &&

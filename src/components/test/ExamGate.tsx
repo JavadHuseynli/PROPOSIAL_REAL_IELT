@@ -13,9 +13,19 @@ export function ExamGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // No schedule set - allow access (free practice mode)
+  // No schedule set - block access
   if (status === "no_schedule") {
-    return <>{children}</>;
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <div className="w-full max-w-md rounded-lg border border-border bg-card p-8 text-center">
+          <div className="mb-4 text-5xl">&#128274;</div>
+          <h2 className="mb-2 text-xl font-bold text-foreground">Imtahan planlanmayib</h2>
+          <p className="text-sm text-muted-foreground">
+            Qrupunuz ucun hele imtahan tarixi teyin olunmayib. Zehmet olmasa muelliminize muraciet edin.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // Exam not started yet - block

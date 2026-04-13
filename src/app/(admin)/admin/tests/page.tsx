@@ -81,6 +81,10 @@ const emptyQuestionForm = {
   imageUrl: "",
   section: "1",
   maxSelections: "1", // nece cavab secmek olar
+  // MATCHING visual form
+  matchingLeftItems: ["", "", ""],
+  matchingRightItems: ["", "", "", "", ""],
+  matchingAnswers: {} as Record<string, string>, // left index -> right letter
 };
 
 const emptyPassageForm = {
@@ -287,11 +291,24 @@ export default function AdminTestsPage() {
     let matchingPairs = "";
     let noteTemplate = "";
     let noteAnswers: Record<string, string> = {};
+    let matchingLeftItems = ["", "", ""];
+    let matchingRightItems = ["", "", "", "", ""];
+    let matchingAnswers: Record<string, string> = {};
 
     if (q.questionType === "MULTIPLE_CHOICE" && Array.isArray(q.options)) {
       options = q.options.length >= 4 ? q.options : [...q.options, ...Array(4 - q.options.length).fill("")];
     } else if (q.questionType === "MATCHING" && q.options) {
       matchingPairs = typeof q.options === "string" ? q.options : JSON.stringify(q.options, null, 2);
+      // Parse pairs from correctAnswer JSON
+      try {
+        const answerMap = JSON.parse(q.correctAnswer);
+        const keys = Object.keys(answerMap);
+        matchingLeftItems = keys.length > 0 ? keys : ["", "", ""];
+        matchingRightItems = keys.length > 0 ? keys.map((k) => answerMap[k]) : ["", "", "", "", ""];
+      } catch {
+        matchingLeftItems = ["", "", ""];
+        matchingRightItems = ["", "", "", "", ""];
+      }
     } else if (q.questionType === "NOTE_COMPLETION") {
       noteTemplate = q.questionText;
       try {
@@ -313,6 +330,9 @@ export default function AdminTestsPage() {
       imageUrl: q.imageUrl || "",
       section: ((q as any).section || 1).toString(),
       maxSelections: (q.options as any)?.maxSelections?.toString() || "1",
+      matchingLeftItems,
+      matchingRightItems,
+      matchingAnswers,
     });
     setQuestionFormError("");
     setShowQuestionModal(true);
@@ -338,13 +358,22 @@ export default function AdminTestsPage() {
       const maxSel = parseInt(questionForm.maxSelections) || 1;
       options = { items: optItems, maxSelections: maxSel };
     } else if (questionForm.questionType === "MATCHING") {
-      try {
-        options = JSON.parse(questionForm.matchingPairs);
-      } catch {
-        setQuestionFormError("Uyğunlaşdırma cütləri düzgün JSON formatında olmalıdır");
+      // Filter out empty rows
+      const pairs: { left: string; right: string }[] = [];
+      for (let i = 0; i < questionForm.matchingLeftItems.length; i++) {
+        const left = questionForm.matchingLeftItems[i]?.trim();
+        const right = questionForm.matchingRightItems[i]?.trim();
+        if (left && right) {
+          pairs.push({ left, right });
+        }
+      }
+      if (pairs.length === 0) {
+        setQuestionFormError("Ən azı 1 cüt daxil edin (başlıq + variant)");
         setQuestionSubmitting(false);
         return;
       }
+      options = pairs.map((p) => p.right);
+      correctAnswer = JSON.stringify(pairs.reduce((acc, p) => ({ ...acc, [p.left]: p.right }), {}));
     } else if (questionForm.questionType === "NOTE_COMPLETION") {
       if (!questionForm.noteTemplate.trim()) {
         setQuestionFormError("Qeyd şablonunu daxil edin");
@@ -751,32 +780,70 @@ export default function AdminTestsPage() {
       return (
         <>
           <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">
-              Uyğunlaşdırma Cütləri (JSON)
-            </label>
-            <textarea
-              value={questionForm.matchingPairs}
-              onChange={(e) =>
-                setQuestionForm({ ...questionForm, matchingPairs: e.target.value })
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">Cütlər</label>
+              <div className="flex gap-4 text-xs text-muted-foreground">
+                <span className="w-[45%] text-center">Başlıq</span>
+                <span className="w-[45%] text-center">Variant</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {questionForm.matchingLeftItems.map((_, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="w-6 text-center text-xs font-bold text-muted-foreground">
+                    {idx + 1}
+                  </span>
+                  <input
+                    type="text"
+                    value={questionForm.matchingLeftItems[idx]}
+                    onChange={(e) => {
+                      const newLeft = [...questionForm.matchingLeftItems];
+                      newLeft[idx] = e.target.value;
+                      setQuestionForm({ ...questionForm, matchingLeftItems: newLeft });
+                    }}
+                    placeholder="Başlıq"
+                    className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <input
+                    type="text"
+                    value={questionForm.matchingRightItems[idx] || ""}
+                    onChange={(e) => {
+                      const newRight = [...questionForm.matchingRightItems];
+                      newRight[idx] = e.target.value;
+                      setQuestionForm({ ...questionForm, matchingRightItems: newRight });
+                    }}
+                    placeholder="Variant"
+                    className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  {questionForm.matchingLeftItems.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newLeft = questionForm.matchingLeftItems.filter((_, i) => i !== idx);
+                        const newRight = questionForm.matchingRightItems.filter((_, i) => i !== idx);
+                        setQuestionForm({ ...questionForm, matchingLeftItems: newLeft, matchingRightItems: newRight });
+                      }}
+                      className="text-sm text-destructive hover:text-destructive/80"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setQuestionForm({
+                  ...questionForm,
+                  matchingLeftItems: [...questionForm.matchingLeftItems, ""],
+                  matchingRightItems: [...questionForm.matchingRightItems, ""],
+                })
               }
-              rows={4}
-              placeholder={'[{"left": "A", "right": "1"}, {"left": "B", "right": "2"}]'}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">
-              Doğru Cavab
-            </label>
-            <input
-              type="text"
-              value={questionForm.correctAnswer}
-              onChange={(e) =>
-                setQuestionForm({ ...questionForm, correctAnswer: e.target.value })
-              }
-              placeholder="A-1, B-2, C-3"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+              className="mt-3 rounded-md border border-dashed border-primary/50 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/5"
+            >
+              + Cüt əlavə et
+            </button>
           </div>
         </>
       );

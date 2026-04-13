@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 import { ROLE_LABELS } from "@/lib/constants";
 
 interface Group {
@@ -40,6 +41,8 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<string>("ALL");
+  const [searchName, setSearchName] = useState("");
+  const [filterGroupId, setFilterGroupId] = useState<string>("ALL");
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -189,8 +192,33 @@ export default function AdminUsersPage() {
     }
   };
 
-  const filteredUsers =
-    activeTab === "ALL" ? users : users.filter((u) => u.role === activeTab);
+  const filteredUsers = users.filter((u) => {
+    if (activeTab !== "ALL" && u.role !== activeTab) return false;
+    if (filterGroupId !== "ALL") {
+      if (filterGroupId === "NONE" && u.groupId) return false;
+      if (filterGroupId !== "NONE" && u.groupId !== filterGroupId) return false;
+    }
+    if (searchName.trim()) {
+      const q = searchName.trim().toLowerCase();
+      if (!u.name.toLowerCase().includes(q) && !(u.fin || "").toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const exportXLSX = () => {
+    const data = filteredUsers.map((u) => ({
+      "Ad": u.name,
+      "FIN": u.fin || "",
+      "Email": u.email || "",
+      "Rol": ROLE_LABELS[u.role] || u.role,
+      "Qrup": u.group?.name || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [{ wch: 30 }, { wch: 22 }, { wch: 28 }, { wch: 12 }, { wch: 10 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Istifadeciler");
+    XLSX.writeFile(wb, `istifadeciler-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
 
   if (loading) {
     return (
@@ -213,6 +241,12 @@ export default function AdminUsersPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">İstifadəçilər</h1>
         <div className="flex gap-2">
+          <button
+            onClick={exportXLSX}
+            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            Excel Export ({filteredUsers.length})
+          </button>
           <button
             onClick={() => { setShowImportModal(true); setImportResult(null); setImportFile(null); }}
             className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
@@ -246,6 +280,28 @@ export default function AdminUsersPage() {
             </span>
           </button>
         ))}
+      </div>
+
+      {/* Search + group filter */}
+      <div className="mb-4 flex flex-wrap gap-3">
+        <input
+          type="text"
+          placeholder="Ad və ya FIN axtar..."
+          value={searchName}
+          onChange={(e) => setSearchName(e.target.value)}
+          className="min-w-[240px] flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        <select
+          value={filterGroupId}
+          onChange={(e) => setFilterGroupId(e.target.value)}
+          className="min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="ALL">Bütün qruplar</option>
+          <option value="NONE">Qrupsuz</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>{g.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Users table */}

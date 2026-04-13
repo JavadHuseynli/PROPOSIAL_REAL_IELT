@@ -23,7 +23,12 @@ export async function POST() {
 
   for (const schedule of schedules) {
     const dateStr = schedule.examDate.toISOString().split("T")[0];
+    const startTime = new Date(`${dateStr}T${schedule.startTime}:00`);
     const endTime = new Date(`${dateStr}T${schedule.endTime}:00`);
+    // Cross-midnight: push end to next day
+    if (endTime.getTime() <= startTime.getTime()) {
+      endTime.setDate(endTime.getDate() + 1);
+    }
 
     if (now <= endTime) continue; // Not ended yet
 

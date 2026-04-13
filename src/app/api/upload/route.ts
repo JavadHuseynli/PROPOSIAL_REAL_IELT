@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -30,28 +28,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Fayl secilmeyib" }, { status: 400 });
     }
 
-    // Ensure uploads directory exists
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadsDir, { recursive: true });
-
-    // Generate unique filename
-    const ext = path.extname(file.name) || ".mp3";
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
-    const filePath = path.join(uploadsDir, filename);
-
-    // Write file to disk
+    // Convert file to base64 data URL
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    const base64 = buffer.toString("base64");
+    const mimeType = file.type || "application/octet-stream";
+    const dataUrl = `data:${mimeType};base64,${base64}`;
 
-    const publicUrl = `/uploads/${filename}`;
-
-    // Image upload
+    // Image upload - return data URL directly
     if (uploadType === "image") {
-      return NextResponse.json({ url: publicUrl }, { status: 201 });
+      return NextResponse.json({ url: dataUrl }, { status: 201 });
     }
 
-    // Audio upload
+    // Audio upload - store as base64 data URL in DB
     if (!testId) {
       return NextResponse.json({ error: "testId lazimdir" }, { status: 400 });
     }
@@ -64,7 +53,7 @@ export async function POST(req: NextRequest) {
     const audioFile = await prisma.audioFile.create({
       data: {
         testId,
-        filePath: publicUrl,
+        filePath: dataUrl,
         section: section ? parseInt(section, 10) : 1,
         order: order ? parseInt(order, 10) : 0,
       },

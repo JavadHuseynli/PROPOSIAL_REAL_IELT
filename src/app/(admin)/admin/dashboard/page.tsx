@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ROLE_LABELS, TEST_TYPE_LABELS } from "@/lib/constants";
 
 interface User {
@@ -129,6 +130,65 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Quick Start Guide */}
+      <div className="mb-8">
+        <h2 className="mb-4 text-lg font-semibold text-foreground">Sürətli Başlanğıc</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <QuickStartCard
+            step={1}
+            title="İstifadəçilər Yaradın"
+            description="Müəllim, tələbə, kafedra müdiri hesabları yaradın. Excel ilə toplu import da mümkündür."
+            href="/admin/users"
+            buttonText="İstifadəçilər"
+            done={users.length > 1}
+          />
+          <QuickStartCard
+            step={2}
+            title="Qrup Yaradın"
+            description="Tələbələri qruplara bölün və hər qrupa müəllim təyin edin."
+            href="/admin/groups"
+            buttonText="Qruplar"
+            done={groups.length > 0}
+          />
+          <QuickStartCard
+            step={3}
+            title="Test / Sual Əlavə Edin"
+            description="Listening, Reading, Writing testləri yaradın. Hər testə suallar, audio fayllar və şəkillər əlavə edin."
+            href="/admin/tests"
+            buttonText="Testlər"
+            done={tests.length > 0}
+          />
+          <QuickStartCard
+            step={4}
+            title="İmtahan Planı"
+            description="Qrup üçün imtahan tarixi və vaxtı təyin edin. Tələbələr yalnız bu vaxtda daxil ola bilərlər."
+            href="/admin/exam-schedule"
+            buttonText="İmtahan Tarixi"
+          />
+        </div>
+
+        {/* How to add questions - detailed guide */}
+        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-5">
+          <h3 className="mb-3 font-semibold text-blue-900">Sual Əlavə Etmə Təlimatı</h3>
+          <div className="space-y-2 text-sm text-blue-800">
+            <p><strong>1.</strong> <Link href="/admin/tests" className="underline">Testlər</Link> səhifəsinə gedin</p>
+            <p><strong>2.</strong> &quot;Yeni Test&quot; düyməsinə basın &rarr; Test adı, tipi (Listening/Reading/Writing) və müddəti daxil edin</p>
+            <p><strong>3.</strong> Yaradılan testin yanında &quot;Suallar&quot; düyməsinə basın</p>
+            <p><strong>4.</strong> &quot;Sual Əlavə Et&quot; düyməsinə basın:</p>
+            <ul className="ml-6 list-disc space-y-1">
+              <li><strong>Sual tipi</strong> seçin: Multiple Choice, True/False/NG, Fill Blank, Matching, Note Completion və s.</li>
+              <li><strong>Sual mətni</strong> yazın</li>
+              <li><strong>Düzgün cavab</strong> daxil edin</li>
+              <li><strong>Şəkil</strong> əlavə edin (xəritə, qrafik və s. üçün) &mdash; &quot;Şəkil yüklə&quot; düyməsi ilə</li>
+              <li><strong>Bölmə (Section)</strong> nömrəsi təyin edin (Part 1=1, Part 2=2 və s.)</li>
+            </ul>
+            <p><strong>5.</strong> <strong>Listening</strong> testləri üçün: &quot;Audio Əlavə Et&quot; ilə hər Part üçün MP3 fayl yükləyin</p>
+            <p><strong>6.</strong> <strong>Reading</strong> testləri üçün: İlk sualda &quot;Passage mətni&quot; sahəsinə mətni yapışdırın</p>
+            <p><strong>7.</strong> <strong>Writing</strong> testləri üçün: &quot;Writing Task&quot; bölməsindən Task 1 və Task 2 tapşırıqlarını əlavə edin</p>
+          </div>
+        </div>
+      </div>
+
       {/* Groups overview */}
       <div>
         <h2 className="mb-4 text-lg font-semibold text-foreground">Qruplar</h2>
@@ -158,6 +218,40 @@ export default function AdminDashboardPage() {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+function QuickStartCard({
+  step,
+  title,
+  description,
+  href,
+  buttonText,
+  done,
+}: {
+  step: number;
+  title: string;
+  description: string;
+  href: string;
+  buttonText: string;
+  done?: boolean;
+}) {
+  return (
+    <div className={`rounded-lg border p-5 ${done ? "border-green-200 bg-green-50" : "border-border bg-card"}`}>
+      <div className="mb-2 flex items-center gap-2">
+        <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${done ? "bg-green-500" : "bg-primary"}`}>
+          {done ? "\u2713" : step}
+        </span>
+        <span className="font-medium text-foreground">{title}</span>
+      </div>
+      <p className="mb-3 text-xs text-muted-foreground">{description}</p>
+      <Link
+        href={href}
+        className="inline-block rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+      >
+        {buttonText} &rarr;
+      </Link>
     </div>
   );
 }

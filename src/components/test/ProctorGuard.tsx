@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useSession } from "next-auth/react";
 
 interface ProctorGuardProps {
   attemptId: string | null;
@@ -14,27 +16,63 @@ if (typeof window !== "undefined") {
 
 export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
   const isGlobal = attemptId === "global";
+  const { data: session } = useSession();
   const leftAt = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFrameRef = useRef<string | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastDbWriteRef = useRef<number>(0);
   const [screenSharing, setScreenSharing] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // Send screenshot to server
+  // Subscribe to broadcast channel once
+  useEffect(() => {
+    if (!enabled || isGlobal || !attemptId) return;
+    const ch = supabase.channel("proctor-screens", {
+      config: { broadcast: { self: false, ack: false } },
+    });
+    ch.subscribe();
+    channelRef.current = ch;
+    return () => {
+      ch.unsubscribe();
+      channelRef.current = null;
+    };
+  }, [enabled, isGlobal, attemptId]);
+
+  // Send frame: broadcast via Supabase realtime + occasional DB write
   const sendCapture = useCallback(
     async (image: string) => {
       if (!attemptId || isGlobal) return;
-      try {
-        await fetch("/api/screen-capture", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ attemptId, image }),
+      // 1. Broadcast live frame (low latency)
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "frame",
+          payload: {
+            attemptId,
+            image,
+            userName: session?.user?.name || "",
+            ts: Date.now(),
+          },
         });
-      } catch {}
+      }
+      // 2. Persist to DB every 5s for archival / late joiners
+      const now = Date.now();
+      if (now - lastDbWriteRef.current > 5000) {
+        lastDbWriteRef.current = now;
+        try {
+          await fetch("/api/screen-capture", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ attemptId, image }),
+          });
+        } catch {}
+      }
     },
-    [attemptId]
+    [attemptId, isGlobal, session?.user?.name]
   );
 
   // Capture frame from stream - works even in background via ImageCapture API
@@ -49,12 +87,12 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
         const imageCapture = new (window as any).ImageCapture(track);
         const bitmap = await imageCapture.grabFrame();
         const canvas = document.createElement("canvas");
-        canvas.width = 1280;
-        canvas.height = 720;
+        canvas.width = 640;
+        canvas.height = 360;
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-          const image = canvas.toDataURL("image/png", 0.5);
+          const image = canvas.toDataURL("image/jpeg", 0.4);
           lastFrameRef.current = image;
           await sendCapture(image);
           bitmap.close();
@@ -72,12 +110,12 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
       await video.play();
 
       const canvas = document.createElement("canvas");
-      canvas.width = 1280;
-      canvas.height = 720;
+      canvas.width = 640;
+      canvas.height = 360;
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const image = canvas.toDataURL("image/png", 0.5);
+        const image = canvas.toDataURL("image/jpeg", 0.4);
         lastFrameRef.current = image;
         await sendCapture(image);
       }
@@ -97,12 +135,12 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
         const imageCapture = new (window as any).ImageCapture(track);
         const bitmap = await imageCapture.grabFrame();
         const canvas = document.createElement("canvas");
-        canvas.width = 1280;
-        canvas.height = 720;
+        canvas.width = 640;
+        canvas.height = 360;
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-          lastFrameRef.current = canvas.toDataURL("image/png", 0.5);
+          lastFrameRef.current = canvas.toDataURL("image/jpeg", 0.4);
         }
         bitmap.close();
       }
@@ -150,14 +188,14 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
       // Periodic: send to server every 15s, keep frame in memory every 3s
       captureIntervalRef.current = setInterval(() => {
         captureScreen();
-      }, 15000);
+      }, 250);
 
       // Keep latest frame in memory more frequently for instant violation captures
       const frameInterval = setInterval(keepLatestFrame, 3000);
       const origCleanup = captureIntervalRef.current;
       captureIntervalRef.current = setInterval(() => {
         captureScreen();
-      }, 15000);
+      }, 250);
       // Store both intervals for cleanup
       const cleanup = () => {
         clearInterval(origCleanup!);
@@ -165,9 +203,11 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
         clearInterval(captureIntervalRef.current!);
       };
       stream.getVideoTracks()[0].addEventListener("ended", cleanup);
-    } catch {
+    } catch (err: any) {
+      console.error("getDisplayMedia failed:", err);
       setDenied(true);
-      reportViolation("SCREEN_SHARE_DENIED", "Ekran paylaşması rədd edildi");
+      setErrorMsg(err?.message || err?.name || "Naməlum xəta");
+      reportViolation("SCREEN_SHARE_DENIED", `Ekran paylaşması rədd edildi: ${err?.name || ""}`);
     }
   }, [captureScreen, keepLatestFrame, reportViolation]);
 
@@ -181,6 +221,11 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
         if (track && track.readyState === "live") {
           streamRef.current = existing;
           setScreenSharing(true);
+          // Start periodic captures for this attempt (only when not global)
+          if (!isGlobal && attemptId) {
+            captureScreen();
+            captureIntervalRef.current = setInterval(() => captureScreen(), 250);
+          }
           return;
         }
       }
@@ -192,7 +237,7 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
         if (captureIntervalRef.current) clearInterval(captureIntervalRef.current);
       }
     };
-  }, [enabled, isGlobal]);
+  }, [enabled, isGlobal, attemptId, captureScreen]);
 
   // Tab/window monitoring
   useEffect(() => {
@@ -201,6 +246,7 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
     // When student is ABOUT TO leave - capture immediately before tab hides
     const handleBeforeHide = () => {
       leftAt.current = Date.now();
+      if (isGlobal) return;
 
       // Immediately capture what's on screen right now
       if (streamRef.current) {
@@ -210,12 +256,12 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
             const imageCapture = new (window as any).ImageCapture(track);
             imageCapture.grabFrame().then((bitmap: ImageBitmap) => {
               const canvas = document.createElement("canvas");
-              canvas.width = 1280;
-              canvas.height = 720;
+              canvas.width = 640;
+              canvas.height = 360;
               const ctx = canvas.getContext("2d");
               if (ctx) {
                 ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-                const image = canvas.toDataURL("image/png", 0.5);
+                const image = canvas.toDataURL("image/jpeg", 0.4);
                 // Use sendBeacon for reliability during page hide
                 fetch("/api/screen-capture", {
                   method: "POST",
@@ -337,9 +383,12 @@ export function ProctorGuard({ attemptId, enabled }: ProctorGuardProps) {
               Açılan pəncərədə <b>&quot;Bütün Ekran&quot;</b> seçin və <b>&quot;Paylaş&quot;</b> basın.
             </p>
             {denied && (
-              <p className="mb-4 text-sm font-medium text-red-600">
-                Ekran paylaşması rədd edildi. Yenidən cəhd edin.
-              </p>
+              <div className="mb-4 rounded bg-red-50 p-2">
+                <p className="text-sm font-medium text-red-600">
+                  Ekran paylaşması alınmadı. Yenidən cəhd edin.
+                </p>
+                {errorMsg && <p className="mt-1 text-[11px] text-red-500">{errorMsg}</p>}
+              </div>
             )}
             <button
               onClick={() => { setDenied(false); startScreenShare(); }}

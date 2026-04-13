@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 
 // POST - student uploads screen capture
 export async function POST(req: NextRequest) {
@@ -31,23 +29,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Save image to disk
-  const capturesDir = path.join(process.cwd(), "public", "captures");
-  await mkdir(capturesDir, { recursive: true });
+  // Store screenshot as base64 data URL directly in DB
+  const screenshotData = image.startsWith("data:") ? image : `data:image/png;base64,${image}`;
 
-  const filename = `${attemptId}-${Date.now()}.png`;
-  const base64Data = image.replace(/^data:image\/png;base64,/, "");
-  await writeFile(path.join(capturesDir, filename), base64Data, "base64");
-
-  // Save to violation record as SCREEN_CAPTURE
-  await prisma.violation.create({
-    data: {
-      attemptId,
-      type: "SCREEN_CAPTURE",
-      detail: `/captures/${filename}`,
-      screenshot: `/captures/${filename}`,
-    },
+  // Keep only the LATEST screen capture per attempt — delete old ones
+  const existing = await prisma.violation.findFirst({
+    where: { attemptId, type: "SCREEN_CAPTURE" },
+    orderBy: { createdAt: "desc" },
   });
+  if (existing) {
+    await prisma.violation.update({
+      where: { id: existing.id },
+      data: { screenshot: screenshotData, createdAt: new Date() },
+    });
+    // Delete any older duplicates
+    await prisma.violation.deleteMany({
+      where: { attemptId, type: "SCREEN_CAPTURE", id: { not: existing.id } },
+    });
+  } else {
+    await prisma.violation.create({
+      data: {
+        attemptId,
+        type: "SCREEN_CAPTURE",
+        detail: `screen-capture`,
+        screenshot: screenshotData,
+      },
+    });
+  }
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }
@@ -72,29 +80,36 @@ export async function GET() {
     orderBy: { startedAt: "desc" },
   });
 
-  // Deduplicate: one entry per student (latest attempt only)
+  // Deduplicate per student
   const seenUsers = new Set<string>();
-  const captures = [];
+  const dedupedAttempts = activeAttempts.filter((a) => {
+    if (seenUsers.has(a.userId)) return false;
+    seenUsers.add(a.userId);
+    return true;
+  });
 
-  for (const attempt of activeAttempts) {
-    if (seenUsers.has(attempt.userId)) continue;
-    seenUsers.add(attempt.userId);
+  // Fetch all latest screenshots in a SINGLE query
+  const attemptIds = dedupedAttempts.map((a) => a.id);
+  const screenshots = await prisma.violation.findMany({
+    where: { attemptId: { in: attemptIds }, type: "SCREEN_CAPTURE" },
+    select: { attemptId: true, screenshot: true, createdAt: true },
+  });
+  const shotMap = new Map(screenshots.map((s) => [s.attemptId, s]));
 
-    const latestCapture = await prisma.violation.findFirst({
-      where: { attemptId: attempt.id, type: "SCREEN_CAPTURE" },
-      orderBy: { createdAt: "desc" },
-    });
-
-    captures.push({
+  const captures = dedupedAttempts.map((attempt) => {
+    const shot = shotMap.get(attempt.id);
+    return {
       attemptId: attempt.id,
       user: attempt.user,
       test: attempt.test,
       startedAt: attempt.startedAt,
       tabSwitchCount: attempt.tabSwitchCount,
-      latestScreenshot: latestCapture?.screenshot || null,
-      capturedAt: latestCapture?.createdAt || null,
-    });
-  }
+      latestScreenshot: shot?.screenshot || null,
+      capturedAt: shot?.createdAt || null,
+    };
+  });
 
-  return NextResponse.json(captures);
+  return NextResponse.json(captures, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }

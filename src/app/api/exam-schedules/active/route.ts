@@ -17,35 +17,17 @@ export async function GET() {
     return NextResponse.json(null);
   }
 
-  // Return the currently active or next upcoming exam for this group
-  const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
-
+  // Return ALL schedules for this group.
+  // The client picks the best one (active > upcoming > latest ended)
+  // to avoid server (UTC) vs client (local timezone) mismatches.
   const schedules = await prisma.examSchedule.findMany({
     where: { groupId: user.groupId },
     orderBy: { examDate: "asc" },
   });
 
-  // Find active exam (today, within time range)
-  for (const s of schedules) {
-    const dateStr = s.examDate.toISOString().split("T")[0];
-    if (dateStr === todayStr) {
-      const start = new Date(`${dateStr}T${s.startTime}:00`);
-      const end = new Date(`${dateStr}T${s.endTime}:00`);
-      if (now >= start && now <= end) {
-        return NextResponse.json(s);
-      }
-    }
+  if (schedules.length === 0) {
+    return NextResponse.json(null);
   }
 
-  // Find next upcoming
-  for (const s of schedules) {
-    const dateStr = s.examDate.toISOString().split("T")[0];
-    const end = new Date(`${dateStr}T${s.endTime}:00`);
-    if (end > now) {
-      return NextResponse.json(s);
-    }
-  }
-
-  return NextResponse.json(null);
+  return NextResponse.json(schedules);
 }

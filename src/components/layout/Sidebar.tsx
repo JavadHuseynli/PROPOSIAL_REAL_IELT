@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useExamTime } from "@/lib/useExamTime";
 
 type NavItem = { label: string; href: string };
 
@@ -56,6 +57,8 @@ export function Sidebar() {
   const { data: session } = useSession();
   const role = session?.user?.role || "STUDENT";
   const items = navByRole[role] || [];
+  const { status: examStatus } = useExamTime();
+  const examActive = examStatus === "active";
   const [progress, setProgress] = useState<Progress | null>(null);
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [examTimeLeft, setExamTimeLeft] = useState<string | null>(null);
@@ -74,7 +77,7 @@ export function Sidebar() {
     };
 
     fetchProgress();
-    const interval = setInterval(fetchProgress, 15000);
+    const interval = setInterval(fetchProgress, 30000);
     return () => clearInterval(interval);
   }, [role]);
 
@@ -88,10 +91,21 @@ export function Sidebar() {
       try {
         const res = await fetch("/api/exam-schedules/active");
         if (!res.ok) return;
-        const schedule = await res.json();
-        if (schedule?.examDate && schedule?.endTime) {
-          const dateStr = new Date(schedule.examDate).toISOString().split("T")[0];
-          deadline = new Date(`${dateStr}T${schedule.endTime}:00`);
+        const data = await res.json();
+        if (!data) return;
+        // API returns array — find the currently active schedule
+        const schedules = Array.isArray(data) ? data : [data];
+        const now = new Date();
+        for (const s of schedules) {
+          if (!s.examDate || !s.endTime || !s.startTime) continue;
+          const dateStr = new Date(s.examDate).toISOString().split("T")[0];
+          const start = new Date(`${dateStr}T${s.startTime}:00`);
+          const end = new Date(`${dateStr}T${s.endTime}:00`);
+          if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
+          if (now >= start && now <= end) {
+            deadline = end;
+            return;
+          }
         }
       } catch {}
     }
@@ -141,7 +155,7 @@ export function Sidebar() {
   }, [role]);
 
   const handleLogout = () => {
-    if (role === "STUDENT" && progress && !progress.allCompleted) {
+    if (role === "STUDENT" && examActive && progress && !progress.allCompleted) {
       setShowExitWarning(true);
       return;
     }
@@ -238,12 +252,12 @@ export function Sidebar() {
           onClick={handleLogout}
           className={cn(
             "w-full rounded-md px-3 py-2 text-sm text-destructive-foreground",
-            role === "STUDENT" && progress && !progress.allCompleted
+            role === "STUDENT" && examActive && progress && !progress.allCompleted
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-destructive hover:bg-destructive/90"
           )}
         >
-          {role === "STUDENT" && progress && !progress.allCompleted
+          {role === "STUDENT" && examActive && progress && !progress.allCompleted
             ? "Tapşırıqları bitirin"
             : "Çıxış"}
         </button>

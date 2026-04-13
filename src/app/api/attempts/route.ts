@@ -80,32 +80,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(activeAttempt, { status: 200 });
   }
 
-  // Check if already completed in current exam schedule time window
+  // Check if already completed in current exam schedule time window.
+  // We use the latest schedule's start time to scope the check,
+  // avoiding server (UTC) vs client (local timezone) mismatches.
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { groupId: true } });
   if (user?.groupId) {
-    const now = new Date();
-    const schedules = await prisma.examSchedule.findMany({ where: { groupId: user.groupId } });
-    for (const s of schedules) {
-      const dateStr = s.examDate.toISOString().split("T")[0];
-      const start = new Date(`${dateStr}T${s.startTime}:00`);
-      const end = new Date(`${dateStr}T${s.endTime}:00`);
-      if (now >= start && now <= end) {
-        // In active exam - check if already completed this test type in this window
-        const alreadyDone = await prisma.testAttempt.findFirst({
-          where: {
-            userId: session.user.id,
-            testId,
-            status: { in: ["COMPLETED", "GRADED"] },
-            startedAt: { gte: start, lte: end },
-          },
-        });
-        if (alreadyDone) {
-          return NextResponse.json(
-            { error: "Bu testi bu imtahanda artiq tamamlamisiniz" },
-            { status: 409 }
-          );
-        }
-        break;
+    const schedules = await prisma.examSchedule.findMany({
+      where: { groupId: user.groupId },
+      orderBy: { examDate: "asc" },
+    });
+
+    if (schedules.length > 0) {
+      // Find the latest schedule by date+startTime (most recent exam window)
+      const latest = schedules.reduce((best, s) => {
+        const bDate = best.examDate.toISOString().split("T")[0];
+        const sDate = s.examDate.toISOString().split("T")[0];
+        const bStart = new Date(`${bDate}T${best.startTime}:00`);
+        const sStart = new Date(`${sDate}T${s.startTime}:00`);
+        return sStart > bStart ? s : best;
+      });
+
+      const latestDate = latest.examDate.toISOString().split("T")[0];
+      const latestStart = new Date(`${latestDate}T${latest.startTime}:00`);
+
+      // Only block if there's a completed attempt AFTER the latest schedule's start
+      const alreadyDone = await prisma.testAttempt.findFirst({
+        where: {
+          userId: session.user.id,
+          testId,
+          status: { in: ["COMPLETED", "GRADED"] },
+          startedAt: { gte: latestStart },
+        },
+      });
+      if (alreadyDone) {
+        return NextResponse.json(
+          { error: "Bu testi bu imtahanda artiq tamamlamisiniz" },
+          { status: 409 }
+        );
       }
     }
   }

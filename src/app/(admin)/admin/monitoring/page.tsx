@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
 
 interface Violation {
   id: string;
@@ -96,11 +97,14 @@ export default function MonitoringPage() {
     setDetailLoading(false);
   };
 
+  const inFlightRef = (typeof window !== "undefined") ? (window as any).__monInFlight ??= { v: false } : { v: false };
   const fetchData = useCallback(async () => {
+    if (inFlightRef.v) return;
+    inFlightRef.v = true;
     try {
       const [monRes, capRes] = await Promise.all([
-        fetch("/api/monitoring"),
-        fetch("/api/screen-capture"),
+        fetch("/api/monitoring", { cache: "no-store" }),
+        fetch("/api/screen-capture", { cache: "no-store" }),
       ]);
       if (monRes.ok) {
         const data = await monRes.json();
@@ -113,14 +117,30 @@ export default function MonitoringPage() {
       }
       setLastUpdate(new Date());
     } catch {}
+    inFlightRef.v = false;
   }, []);
 
   useEffect(() => {
     fetchData().finally(() => setLoading(false));
-    // Auto-refresh every 10 seconds
-    const interval = setInterval(fetchData, 10000);
+    // Slower poll for attempt list / violations - frames come via realtime
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Live frames via Supabase Realtime broadcast
+  useEffect(() => {
+    const ch = supabase.channel("proctor-screens", {
+      config: { broadcast: { self: false, ack: false } },
+    });
+    ch.on("broadcast", { event: "frame" }, (msg) => {
+      const { attemptId, image } = msg.payload as { attemptId: string; image: string; ts: number };
+      // Imperative DOM update — no React rerender, smooth like video
+      const el = document.getElementById(`live-${attemptId}`) as HTMLImageElement | null;
+      if (el) el.src = image;
+    });
+    ch.subscribe();
+    return () => { ch.unsubscribe(); };
+  }, []);
 
   if (loading) {
     return (
@@ -199,7 +219,7 @@ export default function MonitoringPage() {
         <div>
           <h2 className="mb-4 text-lg font-semibold text-foreground">
             Canlı Ekran Görüntüləri
-            <span className="ml-2 text-sm font-normal text-muted-foreground">(hər 15 saniyədə yenilənir)</span>
+            <span className="ml-2 text-sm font-normal text-muted-foreground">(canlı)</span>
           </h2>
           {screenCaptures.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-card p-12 text-center">
@@ -226,14 +246,14 @@ export default function MonitoringPage() {
                       onClick={() => setExpandedScreen(isExpanded ? null : cap.attemptId)}
                       className={`relative bg-gray-900 cursor-pointer ${isExpanded ? "aspect-[16/9] max-h-[75vh]" : "aspect-video"}`}
                     >
-                      {cap.latestScreenshot ? (
-                        <img
-                          src={`${cap.latestScreenshot}?t=${cap.capturedAt || ""}`}
-                          alt={`${cap.user.name} ekranı`}
-                          className="h-full w-full object-contain"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-gray-500">
+                      <img
+                        id={`live-${cap.attemptId}`}
+                        src={cap.latestScreenshot || ""}
+                        alt={`${cap.user.name} ekranı`}
+                        className="h-full w-full object-contain"
+                      />
+                      {!cap.latestScreenshot && (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-500">
                           <span className="text-sm">Ekran gözlənilir...</span>
                         </div>
                       )}

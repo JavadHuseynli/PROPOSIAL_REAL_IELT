@@ -10,6 +10,51 @@ interface ExamSchedule {
 
 type ExamStatus = "no_schedule" | "not_started" | "active" | "ended";
 
+function getScheduleTimes(s: ExamSchedule) {
+  const dateStr = new Date(s.examDate).toISOString().split("T")[0];
+  const start = new Date(`${dateStr}T${s.startTime}:00`);
+  const end = new Date(`${dateStr}T${s.endTime}:00`);
+  // If end is before/equal start, exam crosses midnight — push end to next day
+  if (end.getTime() <= start.getTime()) {
+    end.setDate(end.getDate() + 1);
+  }
+  return { start, end };
+}
+
+function pickBestSchedule(schedules: ExamSchedule[]): ExamSchedule | null {
+  const now = new Date();
+
+  // 1. Active schedule (now is between start and end)
+  for (const s of schedules) {
+    const { start, end } = getScheduleTimes(s);
+    if (now >= start && now <= end) return s;
+  }
+
+  // 2. Next upcoming schedule (start is in the future, pick the nearest)
+  let nearest: ExamSchedule | null = null;
+  let nearestStart = Infinity;
+  for (const s of schedules) {
+    const { start } = getScheduleTimes(s);
+    if (start > now && start.getTime() < nearestStart) {
+      nearest = s;
+      nearestStart = start.getTime();
+    }
+  }
+  if (nearest) return nearest;
+
+  // 3. No active or upcoming — return the most recently ended
+  let latestEnded: ExamSchedule | null = null;
+  let latestEnd = -Infinity;
+  for (const s of schedules) {
+    const { end } = getScheduleTimes(s);
+    if (end.getTime() > latestEnd) {
+      latestEnded = s;
+      latestEnd = end.getTime();
+    }
+  }
+  return latestEnded;
+}
+
 export function useExamTime() {
   const [schedule, setSchedule] = useState<ExamSchedule | null>(null);
   const [status, setStatus] = useState<ExamStatus>("no_schedule");
@@ -22,7 +67,12 @@ export function useExamTime() {
         const res = await fetch("/api/exam-schedules/active");
         if (res.ok) {
           const data = await res.json();
-          if (data) setSchedule(data);
+          if (data) {
+            // API now returns array of all schedules
+            const schedules: ExamSchedule[] = Array.isArray(data) ? data : [data];
+            const best = pickBestSchedule(schedules);
+            if (best) setSchedule(best);
+          }
         }
       } catch {}
       setLoaded(true);
@@ -38,9 +88,7 @@ export function useExamTime() {
 
     const interval = setInterval(() => {
       const now = new Date();
-      const dateStr = new Date(schedule.examDate).toISOString().split("T")[0];
-      const start = new Date(`${dateStr}T${schedule.startTime}:00`);
-      const end = new Date(`${dateStr}T${schedule.endTime}:00`);
+      const { start, end } = getScheduleTimes(schedule);
 
       if (now < start) {
         setStatus("not_started");
