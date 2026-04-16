@@ -295,8 +295,15 @@ export default function AdminTestsPage() {
     let matchingRightItems = ["", "", "", "", ""];
     let matchingAnswers: Record<string, string> = {};
 
-    if (q.questionType === "MULTIPLE_CHOICE" && Array.isArray(q.options)) {
-      options = q.options.length >= 4 ? q.options : [...q.options, ...Array(4 - q.options.length).fill("")];
+    if (q.questionType === "MULTIPLE_CHOICE" && q.options) {
+      // New format: { items: [...], maxSelections: N }
+      let items: string[] = [];
+      if (Array.isArray(q.options)) {
+        items = q.options;
+      } else if (typeof q.options === "object" && (q.options as any).items) {
+        items = (q.options as any).items;
+      }
+      options = items.length >= 4 ? items : [...items, ...Array(Math.max(0, 4 - items.length)).fill("")];
     } else if (q.questionType === "MATCHING" && q.options) {
       matchingPairs = typeof q.options === "string" ? q.options : JSON.stringify(q.options, null, 2);
       // Parse pairs from correctAnswer JSON
@@ -348,10 +355,22 @@ export default function AdminTestsPage() {
     let questionText = questionForm.questionText;
     let correctAnswer = questionForm.correctAnswer;
 
+    // Common validation: questionText required for most types (NOTE_COMPLETION uses noteTemplate)
+    if (questionForm.questionType !== "NOTE_COMPLETION" && !questionForm.questionText.trim()) {
+      setQuestionFormError("Sual mətni tələb olunur");
+      setQuestionSubmitting(false);
+      return;
+    }
+
     if (questionForm.questionType === "MULTIPLE_CHOICE") {
       const optItems = questionForm.options.filter((o) => o.trim() !== "");
       if (optItems.length < 2) {
         setQuestionFormError("Ən azı 2 seçim daxil edin");
+        setQuestionSubmitting(false);
+        return;
+      }
+      if (!questionForm.correctAnswer.trim()) {
+        setQuestionFormError("Doğru cavabı seçin");
         setQuestionSubmitting(false);
         return;
       }
@@ -397,6 +416,13 @@ export default function AdminTestsPage() {
       questionText = questionForm.noteTemplate;
       correctAnswer = JSON.stringify(questionForm.noteAnswers);
       options = { blanks: blankNumbers };
+    } else {
+      // TRUE_FALSE_NG, YES_NO_NG, FILL_BLANK, SENTENCE_COMPLETION
+      if (!correctAnswer.trim()) {
+        setQuestionFormError("Doğru cavabı daxil edin");
+        setQuestionSubmitting(false);
+        return;
+      }
     }
 
     const payload = {
