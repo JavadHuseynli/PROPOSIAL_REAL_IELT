@@ -752,7 +752,7 @@ function QuestionRenderer({
           value={answer}
           onChange={(e) => onAnswer(question.id, e.target.value)}
           placeholder="Cavabınızı yazın..."
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          className="w-full rounded-md border-2 border-primary/40 bg-rose-50 px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         />
       )}
 
@@ -763,7 +763,7 @@ function QuestionRenderer({
           value={answer}
           onChange={(e) => onAnswer(question.id, e.target.value)}
           placeholder="Cümləni tamamlayın..."
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          className="w-full rounded-md border-2 border-primary/40 bg-rose-50 px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
         />
       )}
 
@@ -821,20 +821,34 @@ function NoteCompletionRenderer({
   answer: string;
   onAnswer: (value: string) => void;
 }) {
-  // If template has no {{N}} blank markers, render a single plain text input.
-  // This covers single-blank note-completion questions (e.g. "... and _______ .").
+  // If template has no {{N}} blank markers but has underscore blanks (___),
+  // auto-convert underscores to numbered blanks for inline input rendering.
   const hasBlanks = /\{\{\d+\}\}/.test(template);
-  if (!hasBlanks) {
+  const hasUnderscores = /_{2,}/.test(template);
+
+  let processedTemplate = template;
+  if (!hasBlanks && hasUnderscores) {
+    let counter = 0;
+    processedTemplate = template.replace(/_{2,}/g, () => {
+      counter += 1;
+      return `{{${counter}}}`;
+    });
+  }
+
+  // Still no blanks at all → render a single plain text input as fallback.
+  if (!hasBlanks && !hasUnderscores) {
     return (
       <input
         type="text"
         value={answer}
         onChange={(e) => onAnswer(e.target.value)}
         placeholder="Cavabınızı yazın..."
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+        className="w-full rounded-md border border-input bg-rose-50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
       />
     );
   }
+
+  template = processedTemplate;
 
   let blankAnswers: Record<string, string> = {};
   try {
