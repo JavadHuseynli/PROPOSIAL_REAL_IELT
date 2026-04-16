@@ -436,7 +436,7 @@ export default function AdminTestsPage() {
       points: parseInt(questionForm.points) || 1,
       order: editingQuestion
         ? editingQuestion.order
-        : (selectedTest.questions?.length || 0) + 1,
+        : (selectedTest.questions?.filter((q) => q.points > 0).length || 0) + 1,
     };
 
     try {

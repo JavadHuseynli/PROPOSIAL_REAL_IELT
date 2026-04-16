@@ -328,6 +328,28 @@ export default function TestTakingPage() {
 
   const questions = test.questions;
 
+  // Build sequential question numbering (1, 2, 3...) that skips passage/part placeholders (points=0)
+  // and respects section order. Maps questionId -> displayNumber.
+  const questionNumberMap: Record<string, number> = (() => {
+    const map: Record<string, number> = {};
+    const realQs = questions.filter((q) => q.points > 0);
+    const bySection = new Map<number, Question[]>();
+    for (const q of realQs) {
+      const sec = q.section || 1;
+      if (!bySection.has(sec)) bySection.set(sec, []);
+      bySection.get(sec)!.push(q);
+    }
+    const sortedSecs = Array.from(bySection.entries()).sort((a, b) => a[0] - b[0]);
+    let counter = 1;
+    for (const [, qs] of sortedSecs) {
+      const sorted = [...qs].sort((a, b) => a.order - b.order);
+      for (const q of sorted) {
+        map[q.id] = counter++;
+      }
+    }
+    return map;
+  })();
+
   return (
     <div className="flex gap-6">
       {attempt && <ProctorGuard attemptId={attempt.id} enabled={true} />}
@@ -392,11 +414,11 @@ export default function TestTakingPage() {
                           items.push({ id: q.id, num, answered: !!userAnswers[String(num)]?.trim() });
                         }
                       } else {
-                        // Fallback: no {{number}} blanks found, show by order
-                        items.push({ id: q.id, num: q.order, answered: !!answers[q.id] });
+                        // Fallback: no {{number}} blanks found, show by sequential number
+                        items.push({ id: q.id, num: questionNumberMap[q.id] || q.order, answered: !!answers[q.id] });
                       }
                     } else {
-                      items.push({ id: q.id, num: q.order, answered: !!answers[q.id] });
+                      items.push({ id: q.id, num: questionNumberMap[q.id] || q.order, answered: !!answers[q.id] });
                     }
                   }
                   items.sort((a, b) => a.num - b.num);
@@ -477,7 +499,7 @@ export default function TestTakingPage() {
                         PART {partNum}
                         {partTitle && <span className="ml-2 font-medium text-foreground">{partTitle}</span>}
                         <span className="ml-2 text-xs font-normal text-muted-foreground">
-                          Questions {realQuestions[0]?.order}-{realQuestions[realQuestions.length - 1]?.order}
+                          Questions {realQuestions[0] ? questionNumberMap[realQuestions[0].id] : ""}-{realQuestions[realQuestions.length - 1] ? questionNumberMap[realQuestions[realQuestions.length - 1].id] : ""}
                         </span>
                       </h3>
                     </div>
@@ -485,7 +507,11 @@ export default function TestTakingPage() {
                     {audio && (
                       <div className="border-b border-border bg-purple-50/30 px-5 py-3">
                         <ListeningAudioPlayer
-                          src={audio.filePath.startsWith("/") ? audio.filePath : `/uploads/${audio.filePath}`}
+                          src={
+                            /^(https?:|data:|\/)/.test(audio.filePath)
+                              ? audio.filePath
+                              : `/uploads/${audio.filePath}`
+                          }
                           partNum={partNum}
                         />
                       </div>
@@ -511,7 +537,7 @@ export default function TestTakingPage() {
                               )}
                               <QuestionRenderer
                                 question={{...q, imageUrl: null}}
-                                index={q.order - 1}
+                                index={(questionNumberMap[q.id] || 1) - 1}
                                 answer={answers[q.id] || ""}
                                 onAnswer={setAnswer}
                               />
@@ -565,14 +591,20 @@ export default function TestTakingPage() {
                       {/* Questions - right */}
                       <div className="p-6 lg:max-h-[600px] lg:overflow-y-auto">
                         <h4 className="mb-4 text-sm font-semibold text-muted-foreground">
-                          Questions {secQuestions[0]?.order}-{secQuestions[secQuestions.length - 1]?.order}
+                          {(() => {
+                            const realSec = secQuestions.filter(q => q.points > 0);
+                            if (realSec.length === 0) return "";
+                            const first = questionNumberMap[realSec[0].id];
+                            const last = questionNumberMap[realSec[realSec.length - 1].id];
+                            return `Questions ${first}-${last}`;
+                          })()}
                         </h4>
                         <div className="space-y-4">
-                          {secQuestions.map((q, idx) => (
+                          {secQuestions.filter(q => q.points > 0).map((q) => (
                             <QuestionRenderer
                               key={q.id}
                               question={q}
-                              index={q.order - 1}
+                              index={(questionNumberMap[q.id] || 1) - 1}
                               answer={answers[q.id] || ""}
                               onAnswer={setAnswer}
                             />
