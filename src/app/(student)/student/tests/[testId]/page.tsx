@@ -657,12 +657,30 @@ function QuestionRenderer({
 }) {
   const options: string[] = (() => {
     try {
-      if (question.options && Array.isArray(question.options)) return question.options as string[];
-      if (typeof question.options === "string") return JSON.parse(question.options);
+      const raw = question.options;
+      if (!raw) return [];
+      // New MCQ format: { items: [...], maxSelections: N }
+      if (typeof raw === "object" && !Array.isArray(raw) && (raw as any).items) {
+        return (raw as any).items;
+      }
+      if (Array.isArray(raw)) return raw as string[];
+      if (typeof raw === "string") {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && parsed.items) return parsed.items;
+        if (Array.isArray(parsed)) return parsed;
+      }
       return [];
     } catch {
       return [];
     }
+  })();
+
+  const maxSelections: number = (() => {
+    const raw = question.options as any;
+    if (raw && typeof raw === "object" && !Array.isArray(raw) && raw.maxSelections) {
+      return parseInt(raw.maxSelections) || 1;
+    }
+    return 1;
   })();
 
   // Detect if question text has underscore blanks (e.g. "_____")
@@ -739,22 +757,50 @@ function QuestionRenderer({
       {/* MULTIPLE_CHOICE */}
       {question.questionType === "MULTIPLE_CHOICE" && (
         <div className="space-y-2">
-          {options.map((opt, i) => (
-            <label
-              key={i}
-              className="flex cursor-pointer items-center gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent"
-            >
-              <input
-                type="radio"
-                name={`q-${question.id}`}
-                value={opt}
-                checked={answer === opt}
-                onChange={() => onAnswer(question.id, opt)}
-                className="h-4 w-4 text-primary"
-              />
-              <span className="text-sm text-foreground">{opt}</span>
-            </label>
-          ))}
+          {maxSelections > 1 && (
+            <p className="mb-2 text-xs text-muted-foreground">
+              {maxSelections} cavab seçin
+            </p>
+          )}
+          {options.length === 0 && (
+            <p className="rounded-md border border-dashed border-destructive/50 p-3 text-sm text-destructive">
+              Variantlar yoxdur — admin panelindən əlavə edin.
+            </p>
+          )}
+          {options.map((opt, i) => {
+            const selectedAnswers = answer ? answer.split(",").filter(Boolean) : [];
+            const isChecked = selectedAnswers.includes(opt);
+            return (
+              <label
+                key={i}
+                className="flex cursor-pointer items-center gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent"
+              >
+                <input
+                  type={maxSelections > 1 ? "checkbox" : "radio"}
+                  name={`q-${question.id}`}
+                  value={opt}
+                  checked={isChecked}
+                  onChange={() => {
+                    if (maxSelections > 1) {
+                      let newSelected: string[];
+                      if (isChecked) {
+                        newSelected = selectedAnswers.filter((a) => a !== opt);
+                      } else if (selectedAnswers.length < maxSelections) {
+                        newSelected = [...selectedAnswers, opt];
+                      } else {
+                        newSelected = selectedAnswers;
+                      }
+                      onAnswer(question.id, newSelected.join(","));
+                    } else {
+                      onAnswer(question.id, opt);
+                    }
+                  }}
+                  className="h-4 w-4 text-primary"
+                />
+                <span className="text-sm text-foreground">{opt}</span>
+              </label>
+            );
+          })}
         </div>
       )}
 
