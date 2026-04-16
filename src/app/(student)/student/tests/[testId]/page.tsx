@@ -655,18 +655,75 @@ function QuestionRenderer({
   answer: string;
   onAnswer: (questionId: string, value: string) => void;
 }) {
-  const options: string[] =
-    question.options && Array.isArray(question.options)
-      ? question.options
-      : typeof question.options === "string"
-        ? JSON.parse(question.options)
-        : [];
+  const options: string[] = (() => {
+    try {
+      if (question.options && Array.isArray(question.options)) return question.options as string[];
+      if (typeof question.options === "string") return JSON.parse(question.options);
+      return [];
+    } catch {
+      return [];
+    }
+  })();
+
+  // Detect if question text has underscore blanks (e.g. "_____")
+  const hasUnderscoreBlanks = /_{2,}/.test(question.questionText);
+  const isBlankTextType =
+    question.questionType === "FILL_BLANK" ||
+    question.questionType === "SENTENCE_COMPLETION" ||
+    question.questionType === "NOTE_COMPLETION";
+  const renderInlineBlanks = hasUnderscoreBlanks && isBlankTextType;
+
+  // If inline blanks, parse answer into indexed map
+  let inlineAnswers: Record<string, string> = {};
+  if (renderInlineBlanks) {
+    try {
+      inlineAnswers = answer ? JSON.parse(answer) : {};
+      if (typeof inlineAnswers !== "object" || Array.isArray(inlineAnswers)) {
+        inlineAnswers = { "1": answer };
+      }
+    } catch {
+      inlineAnswers = answer ? { "1": answer } : {};
+    }
+  }
+
+  const updateInlineBlank = (num: string, value: string) => {
+    const updated = { ...inlineAnswers, [num]: value };
+    // For single blank, store as plain string for backward compat
+    const keys = Object.keys(updated).filter((k) => updated[k] !== undefined);
+    if (keys.length === 1) {
+      onAnswer(question.id, updated[keys[0]] || "");
+    } else {
+      onAnswer(question.id, JSON.stringify(updated));
+    }
+  };
+
+  const renderTextWithInlineBlanks = (text: string) => {
+    let blankCounter = 0;
+    const parts = text.split(/(_{2,})/g);
+    return parts.map((part, pIdx) => {
+      if (/^_{2,}$/.test(part)) {
+        blankCounter += 1;
+        const num = String(blankCounter);
+        return (
+          <input
+            key={pIdx}
+            type="text"
+            value={inlineAnswers[num] || ""}
+            onChange={(e) => updateInlineBlank(num, e.target.value)}
+            placeholder="..."
+            className="mx-1 inline-block w-32 rounded border-2 border-primary/40 bg-rose-50 px-2 py-0.5 text-sm font-medium text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        );
+      }
+      return <span key={pIdx}>{part}</span>;
+    });
+  };
 
   return (
     <div id={`q-${question.id}`} className="rounded-lg border border-border bg-card p-6">
-      <p className="mb-4 text-sm font-medium text-foreground">
+      <p className="mb-4 text-sm font-medium leading-7 text-foreground">
         <span className="mr-2 text-primary">Sual {index + 1}.</span>
-        {question.questionText}
+        {renderInlineBlanks ? renderTextWithInlineBlanks(question.questionText) : question.questionText}
       </p>
 
       {question.imageUrl && (
@@ -745,8 +802,8 @@ function QuestionRenderer({
         </div>
       )}
 
-      {/* FILL_BLANK */}
-      {question.questionType === "FILL_BLANK" && (
+      {/* FILL_BLANK - only show separate input if no inline underscores */}
+      {question.questionType === "FILL_BLANK" && !renderInlineBlanks && (
         <input
           type="text"
           value={answer}
@@ -756,8 +813,8 @@ function QuestionRenderer({
         />
       )}
 
-      {/* SENTENCE_COMPLETION */}
-      {question.questionType === "SENTENCE_COMPLETION" && (
+      {/* SENTENCE_COMPLETION - only show separate input if no inline underscores */}
+      {question.questionType === "SENTENCE_COMPLETION" && !renderInlineBlanks && (
         <input
           type="text"
           value={answer}
@@ -799,8 +856,8 @@ function QuestionRenderer({
         );
       })()}
 
-      {/* NOTE_COMPLETION */}
-      {question.questionType === "NOTE_COMPLETION" && (
+      {/* NOTE_COMPLETION - skip if inline blanks already rendered in text */}
+      {question.questionType === "NOTE_COMPLETION" && !renderInlineBlanks && (
         <NoteCompletionRenderer
           template={question.questionText}
           answer={answer}
