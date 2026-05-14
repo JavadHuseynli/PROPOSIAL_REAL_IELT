@@ -1357,27 +1357,33 @@ was inspired by {{11}} about Chinese art that she had started collecting in 1915
                                       <input type="file" accept="audio/*" className="hidden" onChange={async (e) => {
                                         const file = e.target.files?.[0];
                                         if (!file || !selectedTest) return;
-                                        // Delete old audio for this section
                                         if (audio) {
                                           await fetch(`/api/audio/${audio.id}`, { method: "DELETE" });
                                         }
-                                        // Upload to Supabase Storage (bypasses Vercel 4.5MB limit)
-                                        const fileName = `audio/${selectedTest.id}-part${part.num}-${Date.now()}.mp3`;
+                                        const urlRes = await fetch("/api/audio-upload-url", {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ testId: selectedTest.id, part: part.num }),
+                                        });
+                                        if (!urlRes.ok) {
+                                          const errBody = await urlRes.json().catch(() => ({}));
+                                          alert("Audio yuklenme xetasi: " + (errBody.error || urlRes.statusText));
+                                          return;
+                                        }
+                                        const { path, token, publicUrl } = await urlRes.json();
                                         const { error: uploadError } = await supabase.storage
                                           .from("uploads")
-                                          .upload(fileName, file, { contentType: file.type, upsert: true });
+                                          .uploadToSignedUrl(path, token, file, { contentType: file.type, upsert: true });
                                         if (uploadError) {
                                           alert("Audio yuklenme xetasi: " + uploadError.message);
                                           return;
                                         }
-                                        const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(fileName);
-                                        // Save audio record via API
                                         const res = await fetch("/api/audio-record", {
                                           method: "POST",
                                           headers: { "Content-Type": "application/json" },
                                           body: JSON.stringify({
                                             testId: selectedTest.id,
-                                            filePath: urlData.publicUrl,
+                                            filePath: publicUrl,
                                             section: part.num,
                                             order: part.num,
                                           }),
