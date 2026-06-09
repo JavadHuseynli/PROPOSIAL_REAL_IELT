@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateBandScore } from "@/lib/utils";
+import { gradeAttempt } from "@/lib/grading";
 
 export async function GET(
   req: NextRequest,
@@ -119,100 +119,14 @@ export async function PUT(
     const testType = attempt.test.type;
 
     if (testType === "LISTENING" || testType === "READING") {
-      // Auto-grade: compare answers to correct answers
-      const savedAnswers = await prisma.answer.findMany({
-        where: { attemptId: id },
-        include: { question: true },
-      });
-
-      let correctCount = 0;
-      let totalPoints = 0;
-
-      // Normalize answers so "NOT_GIVEN" / "NOT GIVEN" / "not given" all match,
-      // and so fill-in answers are case/whitespace insensitive.
-      const normalize = (s: string) =>
-        s.trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ");
-
-      for (const q of attempt.test.questions) {
-        if (q.questionType === "NOTE_COMPLETION") {
-          // Multi-blank template counts each {{N}} as 1 point; single-blank counts as 1.
-          const blankNums = q.questionText.match(/\{\{(\d+)\}\}/g) || [];
-          totalPoints += blankNums.length > 0 ? blankNums.length : 1;
-        } else {
-          totalPoints += 1;
-        }
-      }
-
-      for (const ans of savedAnswers) {
-        if (ans.question.questionType === "NOTE_COMPLETION") {
-          // Detect multi-blank (JSON object) vs single-blank (plain string).
-          let correctBlanks: Record<string, string> | null = null;
-          try {
-            const parsed = JSON.parse(ans.question.correctAnswer);
-            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-              correctBlanks = parsed;
-            }
-          } catch {}
-
-          if (correctBlanks) {
-            // Multi-blank: compare each blank individually
-            let userBlanks: Record<string, string> = {};
-            try {
-              const parsedUser = JSON.parse(ans.userAnswer);
-              if (parsedUser && typeof parsedUser === "object") userBlanks = parsedUser;
-            } catch {}
-
-            let blanksCorrect = 0;
-            const blankKeys = Object.keys(correctBlanks);
-            for (const key of blankKeys) {
-              if (
-                userBlanks[key] &&
-                normalize(userBlanks[key]) === normalize(correctBlanks[key] || "")
-              ) {
-                blanksCorrect++;
-              }
-            }
-            const isCorrect = blanksCorrect === blankKeys.length && blankKeys.length > 0;
-            correctCount += blanksCorrect;
-
-            await prisma.answer.update({
-              where: { id: ans.id },
-              data: { isCorrect, points: blanksCorrect },
-            });
-          } else {
-            // Single-blank note completion: plain-string compare
-            const isCorrect =
-              normalize(ans.userAnswer) === normalize(ans.question.correctAnswer);
-            await prisma.answer.update({
-              where: { id: ans.id },
-              data: { isCorrect, points: isCorrect ? 1 : 0 },
-            });
-            if (isCorrect) correctCount++;
-          }
-        } else {
-          const isCorrect =
-            normalize(ans.userAnswer) === normalize(ans.question.correctAnswer);
-
-          await prisma.answer.update({
-            where: { id: ans.id },
-            data: {
-              isCorrect,
-              points: isCorrect ? ans.question.points : 0,
-            },
-          });
-
-          if (isCorrect) correctCount++;
-        }
-      }
-
-      const bandScore = calculateBandScore(correctCount, totalPoints);
+      const result = await gradeAttempt(id);
 
       const updated = await prisma.testAttempt.update({
         where: { id },
         data: {
           status: "COMPLETED",
           completedAt: new Date(),
-          score: bandScore,
+          score: result?.bandScore ?? null,
         },
         include: {
           test: {

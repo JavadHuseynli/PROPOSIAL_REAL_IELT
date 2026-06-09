@@ -120,6 +120,7 @@ export default function AdminUsersPage() {
             fin: form.fin || null,
             role: form.role,
             groupId: form.groupId || null,
+            ...(form.password.trim() && { password: form.password }),
           }),
         });
         if (!res.ok) {
@@ -429,20 +430,25 @@ export default function AdminUsersPage() {
                 </div>
               )}
 
-              {!editingUser && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-foreground">
-                    Şifrə {(form.role === "STUDENT" || form.role === "TEACHER") && <span className="text-xs text-muted-foreground">(boş qalsa FIN kod olacaq)</span>}
-                  </label>
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="Boş qalsa FIN kod şifrə olacaq"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-              )}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">
+                  Şifrə{" "}
+                  {editingUser ? (
+                    <span className="text-xs text-muted-foreground">(boş qalsa dəyişməz)</span>
+                  ) : (
+                    (form.role === "STUDENT" || form.role === "TEACHER") && (
+                      <span className="text-xs text-muted-foreground">(boş qalsa FIN kod olacaq)</span>
+                    )
+                  )}
+                </label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder={editingUser ? "Yeni şifrə (boş qalsa dəyişməz)" : "Boş qalsa FIN kod şifrə olacaq"}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-foreground">Rol</label>

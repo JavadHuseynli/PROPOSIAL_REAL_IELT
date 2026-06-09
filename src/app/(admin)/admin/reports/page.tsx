@@ -27,9 +27,26 @@ export default function ReportsPage() {
   const [groups, setGroups] = useState<GroupReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState<GroupReport | null>(null);
+  const [regrading, setRegrading] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const [error, setError] = useState("");
+
+  const handleRegradeAll = async () => {
+    if (!confirm("Butun tamamlanmis Listening/Reading cehdleri yeniden qiymetlendirilecek. Davam edilsin?")) return;
+    setRegrading(true);
+    try {
+      const res = await fetch("/api/attempts/regrade-all", { method: "POST" });
+      if (!res.ok) throw new Error("Yeniden qiymetlendirme ugursuz oldu");
+      const data = await res.json();
+      alert(`Tamam!\nUmumi: ${data.total}\nUgurlu: ${data.success}\nUgursuz: ${data.failed}`);
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setRegrading(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchReport() {
@@ -106,14 +123,23 @@ export default function ReportsPage() {
           <h1 className="text-2xl font-bold text-foreground">Hesabatlar</h1>
           <p className="text-sm text-muted-foreground">Qruplar uzre imtahan neticeleri</p>
         </div>
-        {selectedGroup && (
+        <div className="flex gap-2">
           <button
-            onClick={handlePrint}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            onClick={handleRegradeAll}
+            disabled={regrading}
+            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
           >
-            Cap et
+            {regrading ? "Qiymetlendirilir..." : "Yeniden Qiymetlendir"}
           </button>
-        )}
+          {selectedGroup && (
+            <button
+              onClick={handlePrint}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Cap et
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">

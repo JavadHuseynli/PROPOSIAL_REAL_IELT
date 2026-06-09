@@ -202,11 +202,19 @@ export default function TestTakingPage() {
           }
           throw new Error(data.error || "Cəhd başladıla bilmədi");
         }
+        const isNewAttempt = res.status === 201;
         const data = await res.json();
         setAttempt(data);
 
-        if (test!.duration && timeLeft === null) {
-          setTimeLeft(test!.duration * 60);
+        if (test!.duration) {
+          if (isNewAttempt) {
+            // New attempt: always start from full duration, clear stale localStorage
+            localStorage.removeItem(`${STORAGE_KEY}-timeLeft`);
+            setTimeLeft(test!.duration * 60);
+          } else if (timeLeft === null) {
+            // Resumed in-progress attempt with no saved time
+            setTimeLeft(test!.duration * 60);
+          }
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Xəta baş verdi");

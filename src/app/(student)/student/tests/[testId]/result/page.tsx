@@ -16,6 +16,7 @@ interface Answer {
     questionType: string;
     correctAnswer: string;
     order: number;
+    points: number;
   };
 }
 
@@ -129,6 +130,11 @@ export default function TestResultPage() {
 
   const correctCount = attempt.answers.filter((a) => a.isCorrect).length;
   const totalCount = attempt.answers.length;
+  const earnedPoints = attempt.answers.reduce((sum, a) => sum + (a.points || 0), 0);
+  const totalPoints = attempt.answers.reduce(
+    (sum, a) => sum + (a.question.points || 0),
+    0
+  );
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -156,11 +162,20 @@ export default function TestResultPage() {
       {isListeningOrReading && (
         <>
           {/* Score Summary */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-lg border border-border bg-card p-6 text-center">
               <p className="text-sm text-muted-foreground">Band Score</p>
               <p className="mt-1 text-4xl font-bold text-primary">
                 {attempt.score !== null ? attempt.score : "-"}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-6 text-center">
+              <p className="text-sm text-muted-foreground">Toplam Bal</p>
+              <p className="mt-1 text-4xl font-bold text-blue-600">
+                {earnedPoints}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {totalPoints} baldan
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-6 text-center">

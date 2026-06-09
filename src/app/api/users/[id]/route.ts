@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -48,12 +49,17 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { email, name, role, groupId, fin } = body;
+  const { email, name, role, groupId, fin, password } = body;
 
   const existing = await prisma.user.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
+
+  const hashedPassword =
+    typeof password === "string" && password.trim().length > 0
+      ? await bcrypt.hash(password, 10)
+      : undefined;
 
   const user = await prisma.user.update({
     where: { id },
@@ -63,6 +69,7 @@ export async function PUT(
       ...(role !== undefined && { role }),
       ...(groupId !== undefined && { groupId }),
       ...(fin !== undefined && { fin: fin || null }),
+      ...(hashedPassword && { password: hashedPassword }),
     },
     select: {
       id: true,
