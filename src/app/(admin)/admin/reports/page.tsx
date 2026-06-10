@@ -227,8 +227,8 @@ export default function ReportsPage() {
                         </td>
                         <td className="px-4 py-3 text-center">
                           {s.overall !== null ? (
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${s.overall >= 5 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                              {s.overall}
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${s.overall >= 15 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                              {s.overall}/30
                             </span>
                           ) : <span className="text-muted-foreground">-</span>}
                         </td>
@@ -281,7 +281,7 @@ export default function ReportsPage() {
                     <td>{s.listening?.score ?? "-"}</td>
                     <td>{s.reading?.score ?? "-"}</td>
                     <td>{s.writing?.score ?? "-"}</td>
-                    <td><strong>{s.overall ?? "-"}</strong></td>
+                    <td><strong>{s.overall != null ? `${s.overall}/30` : "-"}</strong></td>
                   </tr>
                 ))}
               </tbody>

@@ -55,12 +55,12 @@ export async function GET() {
     for (const s of students) {
       const scores = [s.listening?.score, s.reading?.score, s.writing?.score].filter((x): x is number => x !== null && x !== undefined);
       if (scores.length > 0) {
-        s.overall = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 2) / 2;
+        s.overall = scores.reduce((a, b) => a + b, 0);
       }
     }
 
     const allScores = students.map((s) => s.overall).filter((x): x is number => x !== null);
-    const groupAvg = allScores.length > 0 ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 2) / 2 : null;
+    const groupAvg = allScores.length > 0 ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 10) / 10 : null;
 
     return {
       id: group.id,
