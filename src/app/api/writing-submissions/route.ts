@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
             select: {
               id: true,
               name: true,
+              fin: true,
               email: true,
               group: { select: { id: true, name: true } },
             },

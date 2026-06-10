@@ -16,7 +16,7 @@ interface WritingSubmission {
   submittedAt: string;
   writingTask: { taskType: string; prompt: string };
   attempt: {
-    user: { id: string; name: string; email: string; group: { id: string; name: string } | null };
+    user: { id: string; name: string; fin: string | null; email: string; group: { id: string; name: string } | null };
     test: { id: string; title: string; type: string };
   };
   review: { id: string; overallBand: number; reviewedAt: string } | null;
@@ -140,7 +140,7 @@ export default function WritingReviewListPage() {
             <tbody className="divide-y divide-border">
               {filtered.map((sub) => (
                 <tr key={sub.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-3 text-sm">{sub.attempt.user.name}</td>
+                  <td className="px-4 py-3 text-sm font-mono">{sub.attempt.user.fin ?? sub.attempt.user.id.slice(0, 8)}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">
                     {sub.attempt.user.group?.name ?? "—"}
                   </td>
