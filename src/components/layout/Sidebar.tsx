@@ -19,6 +19,7 @@ const navByRole: Record<string, NavItem[]> = {
     { label: "Nəzarət", href: "/admin/monitoring" },
     { label: "Hesabatlar", href: "/admin/reports" },
     { label: "Cavablar", href: "/admin/results" },
+    { label: "Writing Yoxlama", href: "/admin/writing-review" },
   ],
   DEAN: [
     { label: "Dashboard", href: "/dean/dashboard" },

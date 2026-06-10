@@ -8,13 +8,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.role !== "TEACHER") {
+  const isAdmin = session.user.role === "ADMIN";
+  if (session.user.role !== "TEACHER" && !isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();
   const {
     submissionId,
+    score,         // admin 10-ballıq
     taskAchievement,
     coherenceCohesion,
     lexicalResource,
@@ -25,19 +27,25 @@ export async function POST(req: NextRequest) {
     inlineComments,
   } = body;
 
-  if (
-    !submissionId ||
-    taskAchievement == null ||
-    coherenceCohesion == null ||
-    lexicalResource == null ||
-    grammaticalRange == null ||
-    overallBand == null
-  ) {
-    return NextResponse.json(
-      { error: "submissionId and all band scores are required" },
-      { status: 400 }
-    );
+  if (!submissionId) {
+    return NextResponse.json({ error: "submissionId is required" }, { status: 400 });
   }
+
+  // Admin sadə 10-ballıq score göndərir
+  if (isAdmin && score == null) {
+    return NextResponse.json({ error: "score is required" }, { status: 400 });
+  }
+
+  // Teacher IELTS kriteriyaları göndərir
+  if (!isAdmin && (taskAchievement == null || coherenceCohesion == null || lexicalResource == null || grammaticalRange == null || overallBand == null)) {
+    return NextResponse.json({ error: "submissionId and all band scores are required" }, { status: 400 });
+  }
+
+  const finalScore = isAdmin ? score : overallBand;
+  const finalTA = isAdmin ? score : taskAchievement;
+  const finalCC = isAdmin ? score : coherenceCohesion;
+  const finalLR = isAdmin ? score : lexicalResource;
+  const finalGR = isAdmin ? score : grammaticalRange;
 
   // Verify the submission exists
   const submission = await prisma.writingSubmission.findUnique({
@@ -65,11 +73,11 @@ export async function POST(req: NextRequest) {
       data: {
         submissionId,
         teacherId: session.user.id,
-        taskAchievement,
-        coherenceCohesion,
-        lexicalResource,
-        grammaticalRange,
-        overallBand,
+        taskAchievement: finalTA,
+        coherenceCohesion: finalCC,
+        lexicalResource: finalLR,
+        grammaticalRange: finalGR,
+        overallBand: finalScore,
         correctedContent: correctedContent || null,
         comments: comments || null,
       },
@@ -96,7 +104,7 @@ export async function POST(req: NextRequest) {
       where: { id: submission.attemptId },
       data: {
         status: "GRADED",
-        score: overallBand,
+        score: finalScore,
       },
     });
 

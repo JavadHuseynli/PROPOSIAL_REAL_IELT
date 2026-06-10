@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { calculateBandScore } from "@/lib/utils";
 
 const normalize = (s: string) =>
   s.trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ");
@@ -88,7 +87,9 @@ export async function gradeAttempt(attemptId: string) {
     }
   }
 
-  const bandScore = calculateBandScore(earnedPoints, totalPoints);
+  const bandScore = totalPoints > 0
+    ? Math.round((earnedPoints / totalPoints) * 100) / 10
+    : 0;
 
   return { bandScore, earnedPoints, totalPoints };
 }
