@@ -18,6 +18,7 @@ const navByRole: Record<string, NavItem[]> = {
     { label: "Imtahan Tarixi", href: "/admin/exam-schedule" },
     { label: "Nəzarət", href: "/admin/monitoring" },
     { label: "Hesabatlar", href: "/admin/reports" },
+    { label: "Cavablar", href: "/admin/results" },
   ],
   DEAN: [
     { label: "Dashboard", href: "/dean/dashboard" },
