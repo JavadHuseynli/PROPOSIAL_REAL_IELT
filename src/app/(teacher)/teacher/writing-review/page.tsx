@@ -4,17 +4,19 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 
+interface Group {
+  id: string;
+  name: string;
+}
+
 interface WritingSubmission {
   id: string;
   content: string;
   wordCount: number;
   submittedAt: string;
-  writingTask: {
-    taskType: string;
-    prompt: string;
-  };
+  writingTask: { taskType: string; prompt: string };
   attempt: {
-    user: { id: string; name: string; email: string };
+    user: { id: string; name: string; email: string; group: { id: string; name: string } | null };
     test: { id: string; title: string; type: string };
   };
   review: { id: string; overallBand: number; reviewedAt: string } | null;
@@ -24,9 +26,19 @@ type FilterStatus = "all" | "reviewed" | "unreviewed";
 
 export default function WritingReviewListPage() {
   const [submissions, setSubmissions] = useState<WritingSubmission[]>([]);
-  const [filter, setFilter] = useState<FilterStatus>("all");
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<string>("all");
+  const [filter, setFilter] = useState<FilterStatus>("unreviewed");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Load teacher's groups once
+  useEffect(() => {
+    fetch("/api/teacher/groups")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: Group[]) => setGroups(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function fetchSubmissions() {
@@ -35,10 +47,10 @@ export default function WritingReviewListPage() {
       try {
         const params = new URLSearchParams();
         if (filter === "unreviewed") params.set("status", "unreviewed");
+        if (selectedGroup !== "all") params.set("groupId", selectedGroup);
         const res = await fetch(`/api/writing-submissions?${params}`);
         if (!res.ok) throw new Error("Məlumatları yükləmək mümkün olmadı");
-        const data = await res.json();
-        setSubmissions(data);
+        setSubmissions(await res.json());
       } catch (err) {
         setError(err instanceof Error ? err.message : "Xəta baş verdi");
       } finally {
@@ -46,38 +58,48 @@ export default function WritingReviewListPage() {
       }
     }
     fetchSubmissions();
-  }, [filter]);
+  }, [filter, selectedGroup]);
 
-  const filteredSubmissions =
+  const filtered =
     filter === "reviewed"
       ? submissions.filter((s) => s.review !== null)
       : filter === "unreviewed"
         ? submissions.filter((s) => s.review === null)
         : submissions;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-muted-foreground">Yüklənir...</div>
-      </div>
-    );
-  }
+  const unreviewedCount = submissions.filter((s) => !s.review).length;
 
   if (error) {
-    return (
-      <div className="rounded-md bg-destructive/10 p-4 text-destructive">
-        {error}
-      </div>
-    );
+    return <div className="rounded-md bg-destructive/10 p-4 text-destructive">{error}</div>;
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Writing Yoxlama</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Writing Yoxlama</h1>
+          <p className="text-sm text-muted-foreground">{unreviewedCount} gözləyən submission</p>
+        </div>
+      </div>
 
-      {/* Filter */}
-      <div className="flex gap-2">
-        {(["all", "unreviewed", "reviewed"] as FilterStatus[]).map((status) => (
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        {/* Group filter */}
+        {groups.length > 1 && (
+          <select
+            value={selectedGroup}
+            onChange={(e) => setSelectedGroup(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="all">Bütün qruplar</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
+        )}
+
+        {/* Status filter */}
+        {(["unreviewed", "reviewed", "all"] as FilterStatus[]).map((status) => (
           <button
             key={status}
             onClick={() => setFilter(status)}
@@ -87,17 +109,16 @@ export default function WritingReviewListPage() {
                 : "bg-card text-muted-foreground border border-border hover:bg-accent"
             }`}
           >
-            {status === "all"
-              ? "Hamısı"
-              : status === "unreviewed"
-                ? "Yoxlanmamış"
-                : "Yoxlanmış"}
+            {status === "all" ? "Hamısı" : status === "unreviewed" ? "Gözləyən" : "Yoxlanmış"}
           </button>
         ))}
       </div>
 
-      {/* Submissions Table */}
-      {filteredSubmissions.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="text-muted-foreground">Yüklənir...</div>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
           Yazı tapılmadı
         </div>
@@ -106,36 +127,24 @@ export default function WritingReviewListPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-left text-sm font-medium">
-                  Tələbə
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium">
-                  Test
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium">
-                  Task
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium">
-                  Tarix
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium">
-                  Band
-                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Tələbə</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Qrup</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Test</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Task</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Tarix</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Bal</th>
                 <th className="px-4 py-3 text-right text-sm font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredSubmissions.map((sub) => (
+              {filtered.map((sub) => (
                 <tr key={sub.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-3 text-sm">
-                    {sub.attempt.user.name}
+                  <td className="px-4 py-3 text-sm">{sub.attempt.user.name}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
+                    {sub.attempt.user.group?.name ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-sm">
-                    {sub.attempt.test.title}
-                  </td>
+                  <td className="px-4 py-3 text-sm">{sub.attempt.test.title}</td>
                   <td className="px-4 py-3 text-sm">
                     {sub.writingTask.taskType === "TASK1" ? "Task 1" : "Task 2"}
                   </td>
@@ -154,7 +163,7 @@ export default function WritingReviewListPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium">
-                    {sub.review ? sub.review.overallBand.toFixed(1) : "—"}
+                    {sub.review ? `${sub.review.overallBand}/10` : "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link

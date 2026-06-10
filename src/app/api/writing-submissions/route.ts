@@ -10,31 +10,39 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
+  const groupId = searchParams.get("groupId");
 
   const where: Record<string, unknown> = {};
 
   if (session.user.role === "TEACHER") {
-    // Find groups where this teacher is assigned
     const teacherGroups = await prisma.group.findMany({
       where: { teacherId: session.user.id },
       select: { id: true },
     });
+    const teacherGroupIds = teacherGroups.map((g) => g.id);
 
-    const groupIds = teacherGroups.map((g) => g.id);
+    // Filter by specific group if requested, otherwise all teacher groups
+    const activeGroupIds =
+      groupId && teacherGroupIds.includes(groupId)
+        ? [groupId]
+        : teacherGroupIds;
 
-    // Get students in those groups
     const students = await prisma.user.findMany({
-      where: { groupId: { in: groupIds } },
+      where: { groupId: { in: activeGroupIds } },
       select: { id: true },
     });
-
     const studentIds = students.map((s) => s.id);
-
     where.attempt = { userId: { in: studentIds } };
   } else if (session.user.role === "STUDENT") {
     where.attempt = { userId: session.user.id };
+  } else if (groupId) {
+    // ADMIN/DEAN with groupId filter
+    const students = await prisma.user.findMany({
+      where: { groupId },
+      select: { id: true },
+    });
+    where.attempt = { userId: { in: students.map((s) => s.id) } };
   }
-  // ADMIN and DEAN see all
 
   if (status === "unreviewed") {
     where.review = null;
@@ -47,7 +55,12 @@ export async function GET(req: NextRequest) {
       attempt: {
         include: {
           user: {
-            select: { id: true, name: true, email: true },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              group: { select: { id: true, name: true } },
+            },
           },
           test: {
             select: { id: true, title: true, type: true },
