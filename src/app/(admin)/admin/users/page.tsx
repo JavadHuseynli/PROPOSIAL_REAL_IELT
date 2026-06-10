@@ -33,6 +33,7 @@ const emptyForm = {
   fin: "",
   role: "STUDENT",
   groupId: "",
+  teacherGroupIds: [] as string[],
 };
 
 export default function AdminUsersPage() {
@@ -90,8 +91,18 @@ export default function AdminUsersPage() {
     setShowModal(true);
   };
 
-  const openEditModal = (user: User) => {
+  const openEditModal = async (user: User) => {
     setEditingUser(user);
+    let teacherGroupIds: string[] = [];
+    if (user.role === "TEACHER") {
+      try {
+        const res = await fetch(`/api/users/${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          teacherGroupIds = (data.teacherOfGroups || []).map((g: Group) => g.id);
+        }
+      } catch {}
+    }
     setForm({
       name: user.name,
       email: user.email,
@@ -99,6 +110,7 @@ export default function AdminUsersPage() {
       fin: user.fin || "",
       role: user.role,
       groupId: user.groupId || "",
+      teacherGroupIds,
     });
     setFormError("");
     setShowModal(true);
@@ -119,7 +131,8 @@ export default function AdminUsersPage() {
             email: form.email,
             fin: form.fin || null,
             role: form.role,
-            groupId: form.groupId || null,
+            groupId: form.role === "STUDENT" ? (form.groupId || null) : undefined,
+            ...(form.role === "TEACHER" && { teacherGroupIds: form.teacherGroupIds }),
             ...(form.password.trim() && { password: form.password }),
           }),
         });
@@ -414,7 +427,7 @@ export default function AdminUsersPage() {
                 </div>
               )}
 
-              {(form.role === "STUDENT" || form.role === "TEACHER") && (
+              {form.role === "STUDENT" && (
                 <div>
                   <label className="mb-1 block text-sm font-medium text-foreground">Qrup</label>
                   <select
@@ -427,6 +440,40 @@ export default function AdminUsersPage() {
                       <option key={g.id} value={g.id}>{g.name}</option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {form.role === "TEACHER" && (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-foreground">
+                    Qruplar <span className="text-xs text-muted-foreground">(bir neçəsini seçmək olar)</span>
+                  </label>
+                  <div className="max-h-40 overflow-y-auto rounded-md border border-input bg-background p-2 space-y-1">
+                    {groups.map((g) => (
+                      <label key={g.id} className="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={form.teacherGroupIds.includes(g.id)}
+                          onChange={(e) => {
+                            const ids = e.target.checked
+                              ? [...form.teacherGroupIds, g.id]
+                              : form.teacherGroupIds.filter((id) => id !== g.id);
+                            setForm({ ...form, teacherGroupIds: ids });
+                          }}
+                          className="rounded"
+                        />
+                        <span className="text-sm text-foreground">{g.name}</span>
+                      </label>
+                    ))}
+                    {groups.length === 0 && (
+                      <p className="px-2 py-1 text-xs text-muted-foreground">Qrup yoxdur</p>
+                    )}
+                  </div>
+                  {form.teacherGroupIds.length > 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {form.teacherGroupIds.length} qrup seçilib
+                    </p>
+                  )}
                 </div>
               )}
 

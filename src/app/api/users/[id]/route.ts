@@ -49,7 +49,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { email, name, role, groupId, fin, password } = body;
+  const { email, name, role, groupId, fin, password, teacherGroupIds } = body;
 
   const existing = await prisma.user.findUnique({ where: { id } });
   if (!existing) {
@@ -81,6 +81,22 @@ export async function PUT(
       createdAt: true,
     },
   });
+
+  // For teachers: update which groups they teach
+  if (Array.isArray(teacherGroupIds)) {
+    // Remove this teacher from all their current groups
+    await prisma.group.updateMany({
+      where: { teacherId: id },
+      data: { teacherId: null },
+    });
+    // Assign them to the selected groups
+    if (teacherGroupIds.length > 0) {
+      await prisma.group.updateMany({
+        where: { id: { in: teacherGroupIds } },
+        data: { teacherId: id },
+      });
+    }
+  }
 
   return NextResponse.json(user);
 }
