@@ -88,7 +88,7 @@ export async function gradeAttempt(attemptId: string) {
   }
 
   const bandScore = totalPoints > 0
-    ? Math.round((earnedPoints / totalPoints) * 100) / 10
+    ? Math.round((earnedPoints / totalPoints) * 10)
     : 0;
 
   return { bandScore, earnedPoints, totalPoints };
