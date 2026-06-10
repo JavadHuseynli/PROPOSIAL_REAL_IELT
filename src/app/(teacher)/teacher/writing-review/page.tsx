@@ -16,7 +16,7 @@ interface WritingSubmission {
   submittedAt: string;
   writingTask: { taskType: string; prompt: string };
   attempt: {
-    user: { id: string; name: string; fin: string | null; email: string; group: { id: string; name: string } | null };
+    user: { id: string; name: string; email: string; group: { id: string; name: string } | null };
     test: { id: string; title: string; type: string };
   };
   review: { id: string; overallBand: number; reviewedAt: string } | null;
@@ -127,7 +127,7 @@ export default function WritingReviewListPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-3 text-left text-sm font-medium">Tələbə</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">#</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Qrup</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Test</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Task</th>
@@ -138,9 +138,9 @@ export default function WritingReviewListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map((sub) => (
+              {filtered.map((sub, idx) => (
                 <tr key={sub.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-3 text-sm font-mono">{sub.attempt.user.fin ?? sub.attempt.user.id.slice(0, 8)}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-muted-foreground">{idx + 1}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">
                     {sub.attempt.user.group?.name ?? "—"}
                   </td>
