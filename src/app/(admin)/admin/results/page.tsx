@@ -173,7 +173,7 @@ export default function AdminResultsPage() {
                           : "bg-background border border-border text-foreground hover:bg-accent"
                       }`}
                     >
-                      {a.test.title} — {a.score !== null ? `Band ${a.score}` : "—"}
+                      {a.test.title} — {a.score !== null ? `${a.score}/10` : "—"}
                     </button>
                   ))}
                 </div>
