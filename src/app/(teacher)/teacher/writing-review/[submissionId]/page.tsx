@@ -69,11 +69,14 @@ export default function WritingReviewDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
 
-  // Band scores
+  // Band scores (0.5 - 10)
   const [taskAchievement, setTaskAchievement] = useState(5);
   const [coherenceCohesion, setCoherenceCohesion] = useState(5);
   const [lexicalResource, setLexicalResource] = useState(5);
   const [grammaticalRange, setGrammaticalRange] = useState(5);
+
+  const SCORE_MIN = 0.5;
+  const SCORE_MAX = 10;
 
   // Review fields
   const [correctedContent, setCorrectedContent] = useState("");
@@ -492,8 +495,8 @@ export default function WritingReviewDetailPage() {
                     </div>
                     <input
                       type="range"
-                      min={0}
-                      max={9}
+                      min={SCORE_MIN}
+                      max={SCORE_MAX}
                       step={0.5}
                       value={bandValues[criteria.key]}
                       onChange={(e) =>
